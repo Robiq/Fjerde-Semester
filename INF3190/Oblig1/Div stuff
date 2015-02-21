@@ -1,0 +1,41 @@
+kan installere mininett.
+
+sudo apt-get install mininett
+
+Pw VM ubuntu: s
+
+Host-only network address: 192.168.56.0/24
+Host IP address on host-only network: 192.168.56.1/24
+Virtual Machine’s virtual interface IP address on host-only network: 192.168.56.101/24
+
+sudo mn -c
+
+xterm (f.eks) h1 (må skrive inn ip i stedet for hostname!)
+
+ip link (i vanlig terminal) 
+
+(hvis du skal sjekke på virtual host: (feks) h1 ip link)
+
+sudo setcap CAP_NET_RAW=ep nameOfProgram
+
+char contents?? :| Peker som malloces senere!
+
+Static= kun tilgjengelig i denne filen-
+ioctl = legge til/manipulere hardware i runtime.
+
+SOCK_RAW = holder l2 rammen/header intakt!
+
+sockaddr_ll	ll=linkedlayer
+
+
+tcpdump for overvåking av trafikk:
+sudo tcpdump -e -i lo -p -nn ether proto 0xFFFF
+
+Alle "unprintable" chars skrives som "." i tcpdump. Verdien står i HEX før, så bruk det til å vite hva som EGENTLIG stod.
+
+Buffer som er i mottaker bør være min. 1600, iom at rammene er ca 1550 bytes!
+
+Kjør TCPdump i switch for å se trafikk! Gi netverkskortnavn "s1", da får du all trafikk gjennom switchen.
+
+inter-process communication (IPC)
+

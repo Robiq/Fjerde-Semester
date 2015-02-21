@@ -1,0 +1,9 @@
+Tips til en god oblig/hjemmeeksamen:
+
+1) Indenter riktig
+2) Vær konsistent
+3) Kompiler med -Wall
+4) Lever med Makefile
+5) Lever med instruksjoner
+
+6) Bruk versjonskontroll

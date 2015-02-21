@@ -1,0 +1,1 @@
+$ gcc -m32 test-nineteen.c nineteen.s -o test-nineteen

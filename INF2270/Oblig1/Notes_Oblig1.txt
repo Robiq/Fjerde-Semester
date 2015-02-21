@@ -1,0 +1,50 @@
+4bit = største tall 15
+
+15 * 10 = 150
+
+dvs. du trenger output på 8 bits, med en ekstra bit for å indikere fortegn. Kan det gå med KUN 8 bits, iom at siste bit alltid blir 0 når du multipliserer med 10?
+
+Multiplisere med 2:
+001
+010
+
+10 faktorisert:
+2*5
+
+iabcd * 2 *5 = iabcd * 2 *4 + iabcd = iabcd * 2 * 2 * 2 + iabcd
+iabcd000+iabcd
+
+iabcd000
++ iabcd0
+
+
+abcd * 1010 = abcd * 1000 + abcd * 10 = 
+  abcd000
+  + abcd0
+åøæzyxcd0
+
+0001*10 = 0010
+
+
+Lag 5 individuelle porter som multipliserer med 2.
+
+(t*2)*5 == t*10
+(t*2)+(t*2)+(t*2)+(t*2)+(t*2)
+
+Hvordan legge sammen resultat v.h.a. porter?
+
+00	0
+01	1
+10	1
+11	0
+
+00	0
+01	1
+10	1
+11	0
+
+00	0
+01	0
+10	0
+11	1
+

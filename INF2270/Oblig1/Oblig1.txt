@@ -1,0 +1,25 @@
+Jeg begynner med å ta inn et 4-bits tall og en sign bit. Sign bit-en sier om det skal multipliseres med + eller - 10(des).
+
+Det første kretsen gjør er å multiplisere 4-bits tallet med 10. Dette gjøres enkelt ved å forkorte, slik:
+abcd er et vilkårlig 4-bits tall.
+
+abcd * 10(des) = abcd * 1010(bin)
+abcd*1010 = abcd * 1000 + abcd * 0010
+abcd * 1000 + abcd * 0010 = abcd000 + abcd0
+
+Carry = overflowbit fra forrige addisjon.
+
+  abcd000 
++   abcd0
+= (carry)(a+carry)(b+carry)(c+a+carry)(d+b)cd0
+
+(d+b) = e
+(c+a+carry) = f
+(b+carry) = g
+(a+carry) = h
+(carry) = i
+(carry)(a+carry)(b+carry)(c+a+carry)(d+b)cd0 = ihgfecd0
+
+Dette regnes ut av del A). i kretsen.
+
+Deretter tar Del B. (Negate) å inverterer alle bitsene og det legges til 1(des), hviss sign bit er 1. Dette gir det samme tallet som ble funnet av multiplikasjonsdelen, bare med negativt fortegn. Om sign bit er 0, leveres svaret uten å endres av negate-kretsen.

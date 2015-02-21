@@ -1,0 +1,562 @@
+T3
+Cloud computing security
+
+
+ 
+T4
+Information security ethics
+ 
+ 	 
+T5
+IT security education
+ 
+ 
+ 
+T6
+Security time decay of crypto algorithms
+
+ 
+ 
+T7
+Status of AES attacks
+ 
+ 
+ 
+T8
+Status in factorization for breaking RSA	 
+ 
+ 
+T9
+Status for the cryptographic strength of ECC
+
+
+ 
+T10
+ IPT (IP Telephony) security
+
+
+ 
+T11
+ Mobile OS security comparison
+
+
+ 
+T12
+Mobile netywork security
+ 
+ 
+ 
+T13
+Security of SS7 (Signalling System 7) in telecommunication networks
+ 
+ 
+ 
+T14
+Trojans and HTML insertion
+
+
+ 
+T15
+SQL injection attacks and prevention
+
+ 
+ 
+T16
+XSS prevention principles
+ 
+ 
+ 
+T17
+Protecting against spear phishing attacks	
+ 
+ 
+T18
+Social engineering attacks prevention
+
+
+ 
+T19
+Cloud security
+
+ 
+ 
+T20
+USB device security
+ 	 	 
+T21
+Bluethooth Security	 
+ 
+ 
+T22
+Security of RFID	 
+ 
+ 
+T23
+Sensor network security
+ 
+ 
+ 
+T24
+Security in Mobile Ad hoc Networks (MANETs)	 
+ 	 
+T25
+Trends in firewall technology	   	  	 
+T26
+Trends in IDS technology	 	 	 
+T27
+DoS attacks and protection techniques	
+ 
+ 
+T28
+ Privacy issues on social networks
+
+
+ 
+T29
+Threats and security in IT outsourcing	 
+ 
+ 
+T30
+Security of bitcoin	
+
+ 
+T31
+Digital cash security
+
+ 
+ 
+T32
+Wi-Fi threats and security
+
+
+ 
+T33
+MP3 and media security	 
+ 	 
+T34
+Online gaming security	
+
+ 
+T35
+Online gambling security
+
+
+ 
+T36
+TPM security solutions (Trusted Platform Module)	 	 	 
+T37
+MS Windows Security	
+
+ 
+T38
+Linux security	
+
+ 
+T39
+Mac OS X security	
+
+ 
+T40
+Web browser security
+
+
+ 
+T41
+CAPTCHA quality and security
+
+ 	 
+T42
+Scope and limitations of ethical hacking 	
+ 	 
+T43
+Honeypots and honeynets	 	 	 
+T44
+Mobile banking security
+
+
+ 
+T45
+Credit card payment security
+
+
+ 
+T46
+Email security and spam filtering	
+
+ 
+T47
+PGP/GPG security 	
+ 
+ 
+T48
+Internet banking security	
+
+ 
+T49
+BYOD security
+ 
+ 	 
+T50
+Security of electronic passports	
+ 	 
+T51
+Security of Id cards	
+ 
+ 
+T52
+Biometrics in Id management	 
+ 	 
+T53
+Security and privacy in pervasive computing	
+ 
+ 
+T54
+Wearable device security
+
+
+ 
+T55
+Internet of Things Security
+
+
+ 
+T56
+ Security of the connected car
+
+
+ 
+T57
+Botnet threats and prevention	
+
+ 
+T58
+Hyper-paranoid security to stop NSA eavesdropping
+
+
+ 
+T59
+Ad blockers: usability and effectiveness
+
+
+
+T60
+Privacy Enhancing Technology solutions and trends	
+
+ 
+T61
+Methods for security protocol validation	 
+ 	 
+T62
+Legal aspects of information security	
+
+ 
+T63
+Prevention and discovery of insider attacks
+
+
+ 
+T64
+Malware protection on mobile platforms	
+
+ 
+T65
+Google Glass Security	 	 	 
+T66
+ Organisational security policies
+ 	 	 
+T67
+ Security incident response strategies
+
+
+ 
+T68
+Types and methods of risk analysis
+ 	 	 
+T69
+Scope and limitation of business continuity planning
+ 	 	 
+T70
+Biometric identification and authentication
+
+
+ 
+T71
+Passwords security
+ 
+ 
+ 
+T72
+Browser PKIX and certificates security
+ 
+ 
+ 
+T73
+DNS Vulnerabilities and Mitigation Strategies	 	 	 
+T74
+DNSSEC and DANE
+ 	 	 
+T75
+Quantum key-distribution and quantum hacking	
+
+ 
+T76
+Security of eVoting	
+
+ 
+T77
+Challenges for tamper resistant hardware	 	 	 
+T78
+Psychological pen testing	
+
+ 
+T79
+Techniques and challenges for computer forensic investigation	
+
+ 
+T80
+Status and trends in digital watermarking	 	 	 
+T81
+Techniques and trends in digital rights management
+
+
+ 
+T82
+Prevention of click fraud and clickjacking	 	 	 
+T83
+Strategies for mitigating e-commerce fraud	 	 	 
+T84
+Role of trust service providers
+ 	 	 
+T85
+Offensive and defensive cyber warfare methods
+
+
+ 
+T86
+Cyberpeace and cyberwarfare rules of engagement
+ 	 	 
+T87
+Identity and access management for e-health
+ 
+ 
+ 
+T88
+ Identity and access management for e-government
+ 
+ 
+ 
+T89
+The Indian Unique Identitification Project: Privacy and security aspects
+ 	 	 
+T90
+Access control in distributed networks
+ 	 	 
+T91
+Authentication and access control in social networks
+ 
+ 
+ 
+T92
+Social network information warfare operations
+ 	 	 
+T93
+Security of the semantic web	
+ 
+ 
+T94
+Strength of electronic signatures and digital signatures	 	 	 
+T95
+Data authenticaiton techniques
+ 	 	 
+T96
+Secure password management
+
+
+ 
+T97
+eHealth Security	
+
+ 
+T98
+SCADA Network Security	 	 	 
+T100
+Disc encryption techniques
+
+
+ 
+T101
+Parental control techniques	
+ 	 
+T102
+SSL security threats	 
+
+ 
+T103
+Strategies certificate revocation	 	 	 
+T104
+Impacts of national and international CERTs	 	 	 
+T105
+APT trends and protection (Advanced Persistent Threats)
+
+
+ 
+T106
+Online anonymity and pseudonymity	
+
+ 
+T107
+The market for zero-day exploits
+
+
+ 
+T108
+Mobile code security	
+
+ 
+T109
+Video conference security	
+
+ 
+T110
+Hypervisor and virtual machine security
+
+
+ 
+T111
+Database security
+
+
+ 
+T112
+Big data privacy and security issues
+  
+  	 
+T113
+Secure software development
+
+
+ 
+T114
+AV Software
+
+
+ 
+T115
+ Cryptographic protocols for network security
+
+
+ 
+T116
+  Phishing awareness	 
+ 
+ 
+T117
+ Managing security vulnerabilities in software
+
+
+ 
+T118
+ Social engineering attacks strategies	 
+ 
+ 
+T119
+ Search engine manipulation
+ 
+
+ 
+T120
+  Skype security and privacy issues	 
+ 
+ 
+T121
+  Hardening Linux
+ 
+ 
+ 
+T122
+  Online Game Fraud and Countermeasures	 
+ 
+ 
+T123
+  Identity management in the European eIDAS programme
+
+
+
+T124
+ Online Payment Security
+
+ 
+ 
+T125
+  Personal computer security
+ 
+ 
+ 
+T126
+  Internet Privacy
+ 
+ 
+ 
+T127
+  SIP (Session Initialization Protocol) and communication security
+ 
+ 
+ 
+T128
+  Security and threats in Bluetooth	 
+ 
+ 
+T129
+  Quantum key distribution
+
+ 
+ 
+T130
+  Quantum computing and cryptography
+ 
+ 
+ 
+T131
+  Federated identity management models
+ 	 	 
+T132
+ Cyber espionage methods and countermeasures
+ 
+
+ 
+T133
+ Legal interception in telecommunicatioan networks
+ 
+ 
+ 
+T134
+  Privacy threats of biometric identification and authentication
+ 
+ 
+ 
+T135
+  Keyboard dynamics biometric methods
+ 
+ 
+ 
+T136
+  Biometric identification and authentication on mobile devices	 
+ 
+ 
+T137
+ Prevention and detection of insider threats
+
+
+
+T138
+ Penetration testing and ethical hacking techniques
+ 
+ 
+ 
+T139
+ Fuzzing techniques
+ 
+ 
+ 
+T140
+ Security of digital signatures
