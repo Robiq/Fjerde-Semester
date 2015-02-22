@@ -52,6 +52,23 @@ static int get_if_hwaddr(int sock, const char* devname, uint8_t hwaddr[6])
 
 	return 0;
 }
+//TODO
+int findARP(char dst){
+
+}
+
+void decodeBuf(const char* buf, char* msg, char* dst)
+{	
+	int i;
+	for(i=0;i<strlen(buf);i++){
+		if(buf[i] == '_' && buf[i+1] == '_'){
+			dst=buf[i+2];
+			break;
+		}
+		msg[i]=buf[i];
+	}
+	msg[i]='\0';
+}
 
 int main(int argc, char* argv[]){
 
@@ -182,9 +199,14 @@ int main(int argc, char* argv[]){
 			read(cfd, buf, sizeof(buf));
 
 			//Håndter __ som skiller msg fra address
-
-			//Find host-address from ARP-list. If not there, send ARP-req! If there - send msg to host!
-
+			char[50] msg;
+			char dst;
+			decodeBuf(buf, msg, dst);
+			if(findARP(dst)){
+				//Send msg
+			} else{
+				//Send ARP, motta ARP, lagre ARP, send msg.
+			}
 		}
 		i++
 	}
