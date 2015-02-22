@@ -6,7 +6,6 @@
 #include <time.h>
 #include <sys/un.h>
 
-#define socketName "localSocket"
 
 int main(int argc, char* argv[])
 {
@@ -17,7 +16,8 @@ int main(int argc, char* argv[])
 	}
 
 	const char* daemon = argv[1];
-	const char* recvAddr = argv[2];
+	const char* add = "__";
+	const char* recvAddr = strncat(add, argv[2], sizeof(argv[2]));
 	const char* message = argv[3];
 
 	//printf("%s\n%s\n%s\n", argv[1], argv[2], argv[3]);
@@ -33,12 +33,14 @@ int main(int argc, char* argv[])
 
 	struct sockaddr_un bindaddr;
 	bindaddr.sun_family = AF_UNIX;
-	strncpy(bindaddr.sun_path, socketName, sizeof(bindaddr.sun_path));
+	strncpy(bindaddr.sun_path, daemon, sizeof(bindaddr.sun_path));
 
 	if(connect(sock, (struct sockaddr*)&bindaddr, sizeof(bindaddr))){
 		perror("Error during connection to socket");
 		return -3;
 	}
+
+	char* pack = strncat(message, recvAddr, (sizeof(recvAddr)));
 
 	write(sock, message, sizeof(message));
 	time_t start;

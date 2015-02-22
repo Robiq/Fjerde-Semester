@@ -8,8 +8,6 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#define socketName "localSocket"
-
 int sock;
 
 //Closes the server
@@ -32,6 +30,8 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+	const char* daemon = argv[1];
+
 	sock=socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1){
 		perror("Error while creating socket!");
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 
 	struct sockaddr_un bindaddr;
 	bindaddr.sun_family = AF_UNIX;
-	strncpy(bindaddr.sun_path, socketName, sizeof(bindaddr.sun_path));
+	strncpy(bindaddr.sun_path, daemon, sizeof(bindaddr.sun_path));
 
 	if(bind(sock, (struct sockaddr*)&bindaddr, sizeof(bindaddr)))
 	{

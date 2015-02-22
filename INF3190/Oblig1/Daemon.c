@@ -13,9 +13,8 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#define socketName "localSocket"
 #define ETH_P_MIP 0xFF
-#define maxCon 4
+#define maxCon 10
 
 int raw, ipc;
 
@@ -123,7 +122,7 @@ int main(int argc, char* argv[]){
 
 	struct sockaddr_un bindaddr;
 	bindaddr.sun_family = AF_UNIX;
-	strncpy(bindaddr.sun_path, socketName, sizeof(bindaddr.sun_path));
+	strncpy(bindaddr.sun_path, daemonName, sizeof(bindaddr.sun_path));
 
 	if(bind(ipc, (struct sockaddr*)&bindaddr, sizeof(bindaddr)) == -1){
 		perror("Bind");
@@ -167,16 +166,25 @@ int main(int argc, char* argv[]){
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
 			//Connected with a raw socket
-			
+
+			#ifdef DEBUG
+			//Print information on message recieved
+			//Sender+Reciever ethernet & MIP-adress, and current status of ARP-cache (Print linkedlist)!
+			#endif
 		}
 		
 		if(FD_ISSET(ipc, &fds)){
 			//Connected with ipc
 
-			char buf[];
+			char buf[50];
 
 			int accpt = accept(ipc, NULL, NULL);
 			read(cfd, buf, sizeof(buf));
+
+			//Håndter __ som skiller msg fra address
+
+			//Find host-address from ARP-list. If not there, send ARP-req! If there - send msg to host!
+
 		}
 		i++
 	}
