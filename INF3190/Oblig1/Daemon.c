@@ -29,65 +29,12 @@ int raw, ipc;
 struct ARP-list* first;
 uint8_t myAdr[6];
 
-struct ether_frame
-{
-	uint8_t dst_addr[6];
-	uint8_t src_addr[6];
-	uint8_t eth_proto[2];
-	char    contents[0];
-} __attribute__((packed));
 
 struct ARP-list
 {
 	char MIP;
 	uint8_t MAC[6];
 	struct ARP-list *next=NULL;
-}
-
-int recieveRaw(char* buf)
-{
-	struct ether_frame *frame = (struct ether_frame*)buf;
-	ssize_t retv = recv(raw, buf, sizeof(buf), 0);
-
-	#ifdef DEBUG
-		printf("Received message with len=%zd\n", retv);
-		
-		printf("Destination address: ");
-		uint8_t mac_dst[6] = frame->dst_addr
-		int i;
-		
-		for(i = 0; i < 5; ++i)	printf("%02x:", mac_dst[i]);
-		
-		printf("%02x\n", mac_dst[5]);
-
-		printf("Source address:      ");
-		uint8_t mac_src[6] = frame->src_addr;
-		
-		for(i = 0; i < 5; ++i)	printf("%02x:", mac_src[i]);
-		
-		printf("%02x\n", mac_src[5]);
-
-		printf("Protocol type:       %04x\n", ntohs(*((uint16_t*)frame->eth_proto)));
-		printf("Contents:            %.*s\n", (int)retv-14, frame->contents);
-	#endif
-}
-
-int createEtherFrame(char* msg, uint8_t* iface_hwaddr, struct ether_frame *frame)
-{
-
-	assert(frame);
-
-	//Ethernet broadcast addr.
-	memcpy(frame->dst_addr, ,6); //WHAT HERE?? TODO
-
-	//Ethernet source addr.
-	memcpy(frame->src_addr, iface_hwaddr, 6);
-
-	//Ethernet protocol field
-	frame->eth_proto[0] = frame->eth_proto[1] = 0xFF;
-
-	//Fill in the message.
-	memcpy(frame->contents, msg, strlen(msg));
 }
 
 void closeProg(){
@@ -176,7 +123,8 @@ int main(int argc, char* argv[]){
 
 	first = malloc(sizeof (struct ARP-list));
 
-	const char* daemonName = argv[1];
+	const char[1] daemonName = argv[1];
+
 	const char* interface = argv[2];
 	uint8_t iface_hwaddr[6];
 
@@ -309,15 +257,25 @@ int main(int argc, char* argv[]){
 			
 			size_t msgsize = sizeof(struct ether_frame)+strlen(msg);
 			struct ether_frame *frame = malloc(msgsize);
+			struct MIP_Frame *mipFrame = malloc(sizeof(MIP_Frame));
+			struct send *sendInfo = malloc(sizeof(struct send));
 			
+
 			uint8_t mac[6];
+			uint8_t dst_addr[6]:
 
 			if(findARP(dst, mac)){
 				//Send msg
 			} else{
 				//Send ARP, motta ARP, lagre ARP, send msg.
+				err = setARP(daemonName[0], mipFrame);
 				//Send ARP
+				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
+				msg[0]='\0';
+				createSend(mipFrame, NULL, sendInfo);
+				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
 				//Motta ARP
+				//Skjer i raw-socketen over!!! TODO
 				//Lagre
 				saveARP(dst, mac);
 				//Send msg
