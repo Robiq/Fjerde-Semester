@@ -6,17 +6,28 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <time.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <linux/if_packet.h>
+#include <net/ethernet.h>
+
+#include <net/if.h>
+
+#include <sys/ioctl.h>
+#include <bits/ioctls.h>
 
 #define ETH_P_MIP 0xFF
 #define maxCon 10
+#define maxSize 1500
 
 int raw, ipc;
+struct ARP-list* first;
+uint8_t myAdr[6];
 
 struct ether_frame
 {
@@ -26,10 +37,74 @@ struct ether_frame
 	char    contents[0];
 } __attribute__((packed));
 
+struct ARP-list
+{
+	char MIP;
+	uint8_t MAC[6];
+	struct ARP-list *next=NULL;
+}
+
+int recieveRaw(char* buf)
+{
+	struct ether_frame *frame = (struct ether_frame*)buf;
+	ssize_t retv = recv(raw, buf, sizeof(buf), 0);
+
+	#ifdef DEBUG
+		printf("Received message with len=%zd\n", retv);
+		
+		printf("Destination address: ");
+		uint8_t mac_dst[6] = frame->dst_addr
+		int i;
+		
+		for(i = 0; i < 5; ++i)	printf("%02x:", mac_dst[i]);
+		
+		printf("%02x\n", mac_dst[5]);
+
+		printf("Source address:      ");
+		uint8_t mac_src[6] = frame->src_addr;
+		
+		for(i = 0; i < 5; ++i)	printf("%02x:", mac_src[i]);
+		
+		printf("%02x\n", mac_src[5]);
+
+		printf("Protocol type:       %04x\n", ntohs(*((uint16_t*)frame->eth_proto)));
+		printf("Contents:            %.*s\n", (int)retv-14, frame->contents);
+	#endif
+}
+
+int createEtherFrame(char* msg, uint8_t* iface_hwaddr, struct ether_frame *frame)
+{
+
+	assert(frame);
+
+	//Ethernet broadcast addr.
+	memcpy(frame->dst_addr, ,6); //WHAT HERE?? TODO
+
+	//Ethernet source addr.
+	memcpy(frame->src_addr, iface_hwaddr, 6);
+
+	//Ethernet protocol field
+	frame->eth_proto[0] = frame->eth_proto[1] = 0xFF;
+
+	//Fill in the message.
+	memcpy(frame->contents, msg, strlen(msg));
+}
+
 void closeProg(){
 	close(ipc);
 	close(raw);
 	unlink(socketName);
+	
+	struct ARP-list* this=first->next;
+	struct ARP-list* prev=first;
+	
+	while(this->next != NULL){
+		free(prev);
+		prev=this;
+		this=this->next
+	}
+	free(this);
+
 	printf("\nSystem closing!\n");
 	Exit(0);
 }
@@ -52,9 +127,31 @@ static int get_if_hwaddr(int sock, const char* devname, uint8_t hwaddr[6])
 
 	return 0;
 }
-//TODO
-int findARP(char dst){
+//Finds mac-addr
+int findARP(char dst, uint8_t* macAd)
+{
+	struct ARP-list* this=first->next;
+	while(this->next != NULL){
+		if(this->MIP == dst){
+			macAd=this->MAC;
+			return 1;
+		}
+		this=this->next
+	}
+	return 0;
+}
 
+int saveARP(char dst, uint8_t* mac)
+{
+	struct ARP-list* this=first->next;
+	while(this->next != NULL)	this=this->next;
+
+	struct ARP-list* add=malloc(sizeof(struct ARP-list));
+	memcpy(add->MIP, dst, 1);
+	memcpy(add->MAC, mac, 6);
+	this->next=add;
+
+	return 1;
 }
 
 void decodeBuf(const char* buf, char* msg, char* dst)
@@ -76,6 +173,9 @@ int main(int argc, char* argv[]){
 		printf("Usage: <Daemon-name> <Interface>\n");
 		return -1;
 	}
+
+	first = malloc(sizeof (struct ARP-list));
+
 	const char* daemonName = argv[1];
 	const char* interface = argv[2];
 	uint8_t iface_hwaddr[6];
@@ -103,8 +203,10 @@ int main(int argc, char* argv[]){
 		return -3;
 	}
 
-	//Todo change
+	//
 	if(get_if_hwaddr(raw, interface, iface_hwaddr) != 0)	return -3;
+
+	myAdr=iface_hwaddr;
 
 	#ifdef DEBUG
 	/* Print the hardware address of the interface */
@@ -182,11 +284,13 @@ int main(int argc, char* argv[]){
 		}
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
+			char buffer[maxSize];
 			//Connected with a raw socket
-
+			recieveRaw(buffer);
+			//If not in ARP-table: ADD! TODO
 			#ifdef DEBUG
 			//Print information on message recieved
-			//Sender+Reciever ethernet & MIP-adress, and current status of ARP-cache (Print linkedlist)!
+			//Sender+Reciever MIP-adress, and current status of ARP-cache (Print linkedlist)!
 			#endif
 		}
 		
@@ -199,13 +303,24 @@ int main(int argc, char* argv[]){
 			read(cfd, buf, sizeof(buf));
 
 			//Håndter __ som skiller msg fra address
-			char[50] msg;
-			char dst;
+			char[maxSize] msg;
+			char dst[1];
 			decodeBuf(buf, msg, dst);
-			if(findARP(dst)){
+			
+			size_t msgsize = sizeof(struct ether_frame)+strlen(msg);
+			struct ether_frame *frame = malloc(msgsize);
+			
+			uint8_t mac[6];
+
+			if(findARP(dst, mac)){
 				//Send msg
 			} else{
 				//Send ARP, motta ARP, lagre ARP, send msg.
+				//Send ARP
+				//Motta ARP
+				//Lagre
+				saveARP(dst, mac);
+				//Send msg
 			}
 		}
 		i++
