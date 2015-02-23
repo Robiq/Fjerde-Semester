@@ -15,7 +15,3 @@
 #include <sys/ioctl.h>
 #include <bits/ioctls.h>
 
-int createMIPFrame()
-{
-
-}

@@ -118,29 +118,35 @@ int setARP(char src, struct MIP_Frame* mipFrame){
 	return 1;
 }
 
-int setTransport(char src, char dst, int payload, struct MIP_Frame* mipFrame){
+int setTransport(char src, char dst, size_t payload, struct MIP_Frame* mipFrame){
 	//TRA 100 1111 0000 0000 0 = 40448
 	memset(mipframe->dstMIP, 0, (sizeof(mipframe->dstMIP)));
 	memset(&srcMIP, 0, (sizeof(mipframe->srcMIP)));
 	mipframe->srcMIP[0] = (int) src;
 	mipframe->dstMIP[0] = (int) dst;
-	int calc = Transport + (payload + 4);//?? Rett?
+	payload+=4;//?? Rett?
+	int calc = Transport + payload;
+	
+	if(payload%4 != 0)	payload+= (calc%4);
 
-	if(payload+4 > maxSize)	return 0;
+	if(payload > maxSize)	return 0;
 
 	memset(mipframe->TRA_TTL_Payload, calc, (sizeof(mipframe->TRA_TTL_Payload)));
 	return 1;
 }
 
-int setRouting(char src, char dst, int payload, struct MIP_Frame* mipFrame){
+int setRouting(char src, char dst, size_t payload, struct MIP_Frame* mipFrame){
 	//Routing 010 1111 0000 0000 0 = 24064
 	memset(mipframe->dstMIP, 0, (sizeof(mipframe->dstMIP)));
 	memset(&srcMIP, 0, (sizeof(mipframe->srcMIP)));
 	mipframe->srcMIP[0] = (int) src;
 	mipframe->dstMIP[0] = (int) dst;
-	int calc = Routing + (payload + 4); //??
+	payload+=4;//?? Rett?
+	int calc = Routing + payload;
 	
-	if(payload+4 > maxSize)	return 0;
+	if(payload%4 != 0)	payload+= (calc%4);
+
+	if(payload > maxSize)	return 0;
 
 	memset(mipframe->TRA_TTL_Payload, calc, (sizeof(mipframe->TRA_TTL_Payload)));
 	return 1;

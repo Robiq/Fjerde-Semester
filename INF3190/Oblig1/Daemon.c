@@ -259,6 +259,7 @@ int main(int argc, char* argv[]){
 			struct ether_frame *frame = malloc(msgsize);
 			struct MIP_Frame *mipFrame = malloc(sizeof(MIP_Frame));
 			struct send *sendInfo = malloc(sizeof(struct send));
+			size_t sndSize = strlen(msg);
 			
 
 			uint8_t mac[6];
@@ -266,6 +267,11 @@ int main(int argc, char* argv[]){
 
 			if(findARP(dst, mac)){
 				//Send msg
+				setTransport(daemonName[0], dst[0], sndSize, mipFrame);
+				createSend(mipFrame, msg, sendInfo);
+				createEtherFrame(sendInfo, myAdr, mac, frame);
+				
+				
 			} else{
 				//Send ARP, motta ARP, lagre ARP, send msg.
 				err = setARP(daemonName[0], mipFrame);
