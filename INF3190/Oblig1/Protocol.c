@@ -124,14 +124,38 @@ int setTransport(char src, char dst, size_t payload, struct MIP_Frame* mipFrame)
 	memset(&srcMIP, 0, (sizeof(mipframe->srcMIP)));
 	mipframe->srcMIP[0] = (int) src;
 	mipframe->dstMIP[0] = (int) dst;
-	payload+=4;//?? Rett?
-	int calc = Transport + payload;
 	
-	if(payload%4 != 0)	payload+= (calc%4);
+	int calc = Transport + (payload/4);
+	
+	if(payload%4 != 0)	return 0;
 
-	if(payload > maxSize)	return 0;
+	if(payload+4 > maxSize)	return 0;
 
 	memset(mipframe->TRA_TTL_Payload, calc, (sizeof(mipframe->TRA_TTL_Payload)));
+	return 1;
+}
+
+int setTempTransp(char src, size_t payload, struct MIP_Frame* mipFrame)
+{
+	//TRA 100 1111 0000 0000 0 = 40448
+	memset(mipframe->dstMIP, 0, (sizeof(mipframe->dstMIP)));
+	memset(&srcMIP, 0, (sizeof(mipframe->srcMIP)));
+	mipframe->srcMIP[0] = (int) src;
+	
+	int calc = Transport + (payload/4);
+	
+	if(payload%4 != 0)	return 0;
+
+	if(payload+4 > maxSize)	return 0;
+
+	memset(mipframe->TRA_TTL_Payload, calc, (sizeof(mipframe->TRA_TTL_Payload)));
+	return 1;
+}
+
+int finalTransp(char dst, struct MIP_Frame* mipFrame)
+{
+	mipframe->dstMIP[0] = (int) dst;
+
 	return 1;
 }
 
@@ -141,96 +165,13 @@ int setRouting(char src, char dst, size_t payload, struct MIP_Frame* mipFrame){
 	memset(&srcMIP, 0, (sizeof(mipframe->srcMIP)));
 	mipframe->srcMIP[0] = (int) src;
 	mipframe->dstMIP[0] = (int) dst;
-	payload+=4;//?? Rett?
-	int calc = Routing + payload;
 	
-	if(payload%4 != 0)	payload+= (calc%4);
+	int calc = Routing + (payload/4);
+	
+	if(payload%4 != 0)	return 0;
 
-	if(payload > maxSize)	return 0;
+	if(payload+4 > maxSize)	return 0;
 
 	memset(mipframe->TRA_TTL_Payload, calc, (sizeof(mipframe->TRA_TTL_Payload)));
 	return 1;
 }
-
-//TODO
-/* ??????
-Length:	
-  the	
-  length	
-  of	
-  the	
-  payload	
-  in	
-  32-­‐bit	
-  words	
-  (i.e.	
-  the	
-  total	
-  length	
-  of	
-  the	
-  MIP	
-  
-packet	
-  including	
-  the	
-  MIP	
-  header	
-  in	
-  bytes	
-  is	
-  Length*4+4).	
-  
-	
-  
-Important	
-  general	
-  MIP	
-  protocol	
-  rule:	
-  
-The	
-  payload	
-  of	
-  a	
-  MIP	
-  packet	
-  is	
-  always	
-  a	
-  multiple	
-  of	
-  4,	
-  and	
-  the	
-  total	
-  packet	
-  size	
-  
-including	
-  the	
-  4-­‐byte	
-  MIP	
-  header	
-  must	
-  not	
-  exceed	
-  1500. 1 	
-  MIP	
-  does	
-  not	
-  fragment	
-  
-packets,	
-  i.e.	
-  it	
-  cannot	
-  accept	
-  messages	
-  that	
-  do	
-  not	
-  fulfill	
-  these	
-  constraints.	
- */

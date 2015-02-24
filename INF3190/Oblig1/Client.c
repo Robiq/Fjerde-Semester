@@ -40,9 +40,9 @@ int main(int argc, char* argv[])
 		return -3;
 	}
 
-	char* pack = strncat(message, recvAddr, (sizeof(recvAddr)));
+	char pack[(strlen(message)+strlen(recvAddr)+1)] = strncat(message, recvAddr, (sizeof(recvAddr)));
 
-	write(sock, message, sizeof(message));
+	write(sock, pack, sizeof(pack));
 	time_t start;
 	start = time (NULL);
 

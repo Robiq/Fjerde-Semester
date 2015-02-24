@@ -2,8 +2,6 @@
 
 //https://austinmarton.wordpress.com/2011/09/14/sending-raw-ethernet-packets-from-a-specific-interface-in-c-on-linux/
 
-//Select-server. Recieve package, print msg, send "ping" to correct host via new raw-socket and wait.
-
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -74,6 +72,15 @@ static int get_if_hwaddr(int sock, const char* devname, uint8_t hwaddr[6])
 
 	return 0;
 }
+
+void printMAC(uint8_t* mac)
+{
+	int i;
+	for(i = 0; i < 5; ++i)
+		printf("%02x:", mac[i]);
+	printf("%02x\n", mac[5]);
+}
+
 //Finds mac-addr
 int findARP(char dst, uint8_t* macAd)
 {
@@ -87,7 +94,7 @@ int findARP(char dst, uint8_t* macAd)
 	}
 	return 0;
 }
-
+//Saves an APR-resoult
 int saveARP(char dst, uint8_t* mac)
 {
 	struct ARP-list* this=first->next;
@@ -99,6 +106,22 @@ int saveARP(char dst, uint8_t* mac)
 	this->next=add;
 
 	return 1;
+}
+//Print ARP-table
+void printARP()
+{
+	printf("\nARP-list:\n");
+	struct ARP-list* this=first->next;
+	while(this->next != NULL){
+		printf("MIP-ADR: %c\n", this->MIP);
+		printf("MAC-ADR: ");
+		printMAC(this->MAC);
+		this=this->next;
+	}
+
+	printf("MIP-ADR: %c\n", this->MIP);
+	printf("MAC-ADR: ");
+	printMAC(this->MAC);
 }
 
 void decodeBuf(const char* buf, char* msg, char* dst)
@@ -159,9 +182,7 @@ int main(int argc, char* argv[]){
 	#ifdef DEBUG
 	/* Print the hardware address of the interface */
 	printf("HW-addr: ");
-	for(i = 0; i < 5; ++i)
-		printf("%02x:", iface_hwaddr[i]);
-	printf("%02x\n", iface_hwaddr[5]);
+	printMAC(iface_hwaddr);
 	#endif
 
 	/* Bind the socket to the specified interface */
@@ -230,16 +251,50 @@ int main(int argc, char* argv[]){
 			perror("select");
 			return -6;
 		}
+
+		struct MIP_Frame *tmpFrame = malloc(sizeof(MIP_Frame));
+
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
-			char buffer[maxSize];
+			char recvbuf[maxSize];
+			struct ether_frame *recvframe = (struct ether_frame*)recvbuf;
+
 			//Connected with a raw socket
-			recieveRaw(buffer);
-			//If not in ARP-table: ADD! TODO
+			err=recieveRaw(recvbuf);
+			if(!err){
+				printf("Error while reciving from raw!\n");
+				return -7;
+			}
+
+
+			int debug=0:
+
 			#ifdef DEBUG
 			//Print information on message recieved
-			//Sender+Reciever MIP-adress, and current status of ARP-cache (Print linkedlist)!
+			//Sender+Reciever MIP-adress
+			debug=1;
 			#endif
+			
+			err=findCase(recvframe, debug);
+			if (err==-1){
+				printf("Faulty ethernet-frame!\n");
+				return -8;
+			}
+			
+			struct send *recvd=recvframe->contents;
+
+			uint8_t tmp[6]:
+			
+			//If not in ARP-table: ADD!
+			if(!findARP(recvd->frame->srcMIP, tmp)){
+				saveARP(recvd->frame->srcMIP, recvframe->src_addr);
+			}
+
+			#ifdef DEBUG
+			printARP();
+			#endif
+
+
 		}
 		
 		if(FD_ISSET(ipc, &fds)){
@@ -248,7 +303,9 @@ int main(int argc, char* argv[]){
 			char buf[50];
 
 			int accpt = accept(ipc, NULL, NULL);
-			read(cfd, buf, sizeof(buf));
+			if(accpt == -1)	return -9;
+
+			recIPC(accpt, buf);
 
 			//Håndter __ som skiller msg fra address
 			char[maxSize] msg;
@@ -280,6 +337,8 @@ int main(int argc, char* argv[]){
 				msg[0]='\0';
 				createSend(mipFrame, NULL, sendInfo);
 				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
+				setTempTrans(daemonName[0], sndSize, tmpFrame);
+
 				//Motta ARP
 				//Skjer i raw-socketen over!!! TODO
 				//Lagre
