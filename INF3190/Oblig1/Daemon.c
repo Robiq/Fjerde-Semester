@@ -310,7 +310,7 @@ int main(int argc, char* argv[]){
 			//Create ethernet-frame & send-struct!
 			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);
 			struct ether_frame *frame = malloc(msgsize);
-			struct send *sendInfo = malloc(sizeof(struct send));
+			
 
 			err=findCase(recvframe, debug);
 
@@ -326,14 +326,16 @@ int main(int argc, char* argv[]){
 					free(tmpBuf);
 				}
 				free(daemonName);
+				free(frame);
 				return -8;
 				//Recieved Arp-response.
 			} else if(err == 2){
 				//Save in Arp-cache
-				saveArp((char)recvd->frame->srcMIP[1], recvframe->src_addr);
+				saveArp(recvd->frame->srcMIP[1], recvframe->src_addr);
 				//Finalize saved mip-frame!
-				finalTransp((char)recvd->frame->srcMIP[1], tmpFrame);
+				finalTransp(recvd->frame->srcMIP, tmpFrame);
 				//Add send-struct
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(tmpFrame));
 				if(!createSend(tmpFrame, tmpBuf, sendInfo)){
 					//ERROR!
 					perror("Error during framecreation (SEND)");
@@ -346,6 +348,9 @@ int main(int argc, char* argv[]){
 						free(tmpBuf);
 					}
 					free(daemonName);
+					free(frame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -13;
 				}
 				//Add everything to ethernet-frame & send!
@@ -363,6 +368,9 @@ int main(int argc, char* argv[]){
 						free(tmpBuf);
 					}
 					free(daemonName);
+					free(frame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -11;
 				}
 
@@ -370,6 +378,7 @@ int main(int argc, char* argv[]){
 				free(tmpFrame);
 				free(tmpBuf);
 				frmSet=0;
+				free(sendInfo->frame);
 				free(sendInfo);
 
 			//Revieced Arp-request
@@ -383,8 +392,9 @@ int main(int argc, char* argv[]){
 				//Send Arp-response!
 				struct MIP_Frame* frm = malloc(sizeof(struct MIP_Frame));
 				//Create Arp-response-frame.
-				setARPReturn(daemonName[0], (char) recvd->frame->srcMIP[0], frm);
+				setARPReturn(daemonName, recvd->frame->srcMIP, frm);
 				//Create send-struct
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(frm));
 				if(!createSend(frm, NULL, sendInfo)){
 					//ERROR!
 					perror("Error during framecreation(SEND)");
@@ -397,6 +407,10 @@ int main(int argc, char* argv[]){
 						free(tmpBuf);
 					}
 					free(daemonName);
+					free(sendInfo->frame);
+					free(sendInfo);
+					free(frm);
+					free(frame);
 					return -13;
 				}
 				//Create ethernet-package
@@ -414,11 +428,16 @@ int main(int argc, char* argv[]){
 						free(tmpBuf);
 					}
 					free(daemonName);
+					free(sendInfo->frame);
+					free(sendInfo);
+					free(frm);
+					free(frame);
 					return -11;
 				}
 
 				free(frame);
 				free(frm);
+				free(sendInfo->frame);
 				free(sendInfo);
 
 			//Recived transport
@@ -435,6 +454,7 @@ int main(int argc, char* argv[]){
 						free(tmpBuf);
 					}
 					free(daemonName);
+					free(frame);
 					return -9;
 				}
 			}
@@ -473,15 +493,16 @@ int main(int argc, char* argv[]){
 			size_t msgsize = sizeof(struct ether_frame)+ sizeof(struct send);
 			struct ether_frame *frame = malloc(msgsize);
 			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame));
-			struct send *sendInfo = malloc(sizeof(struct send));
+			
 			size_t sndSize = strlen(msg);
 			
+
 
 			uint8_t mac[6];
 
 			if(findArp(dst[0], mac)){
 				//Create frames
-				if(!setTransport(daemonName[0], dst[0], sndSize, mipFrame)){
+				if(!setTransport(daemonName, dst, sndSize, mipFrame)){
 					//ERROR!
 					perror("Error during framecreation(Transport)");
 					close(raw);
@@ -490,8 +511,14 @@ int main(int argc, char* argv[]){
 
 					if(frmSet)	free(tmpFrame);
 					free(daemonName);
+					free(frame);
+					free(mipFrame);
+
 					return -12;
 				}
+
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
+
 				if(!createSend(mipFrame, msg, sendInfo)){
 					//ERROR!
 					perror("Error during framecreation(SEND)");
@@ -501,6 +528,10 @@ int main(int argc, char* argv[]){
 
 					if(frmSet)	free(tmpFrame);
 					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -13;
 				}
 				createEtherFrame(sendInfo, myAdr, mac, frame);
@@ -514,11 +545,16 @@ int main(int argc, char* argv[]){
 
 					if(frmSet)	free(tmpFrame);
 					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -11;
 				}
 
 				free(mipFrame);
 				free(frame);
+				free(sendInfo->frame);
 				free(sendInfo);
 				
 			} else{
@@ -528,10 +564,13 @@ int main(int argc, char* argv[]){
 				uint8_t dst_addr[6];
 
 				//Create arp-frame
-				err = setARP(daemonName[0], mipFrame);
+				err = setARP(daemonName, mipFrame);
 				//Create send-struct & ether-frame
 				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
 				msg[0]='\0';
+
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
+
 				if(!createSend(mipFrame, NULL, sendInfo)){
 					//ERROR!
 					perror("Error during framecreation(SEND)");
@@ -541,6 +580,10 @@ int main(int argc, char* argv[]){
 
 					if(frmSet)	free(tmpFrame);
 					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -13;
 				}
 				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
@@ -553,12 +596,17 @@ int main(int argc, char* argv[]){
 					clearArp();
 					free(tmpFrame);
 					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -11;
 				}
 
 				free(mipFrame);
 				free(frame);
-				if(!setTempTransp(daemonName[0], sndSize, tmpFrame)){
+
+				if(!setTempTransp(daemonName, sndSize, tmpFrame)){
 					//ERROR!
 					perror("Error during framecreation(TempTrans)");
 					close(raw);
@@ -567,9 +615,12 @@ int main(int argc, char* argv[]){
 
 					if(frmSet)	free(tmpFrame);
 					free(daemonName);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -12;
 				}
 				tmpBuf = strdup(buf);
+				free(sendInfo->frame);
 				free(sendInfo);
 			}
 		}
