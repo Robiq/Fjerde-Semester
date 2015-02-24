@@ -14,31 +14,8 @@ Source/Dest MIP - char!
 #include <unistd.h>
 #include <inttypes.h>
 
-#define ARP 15872
-#define Routing 24064
-#define Transport 40448
-#define maxSize 1500
-
-struct ether_frame
-{
-	uint8_t dst_addr[6];
-	uint8_t src_addr[6];
-	uint8_t eth_proto[2];
-	char    contents[0];
-} __attribute__((packed));
-
-struct MIP_Frame
-{
-	uint8_t TRA_TTL_Payload[2];
-	uint8_t srcMIP[1];
-	uint8_t dstMIP[1];
-} __attribute__((packed));
-
-struct send
-{
-	struct MIP_Frame* frame;
-	char message [maxSize-4];
-}
+//To get the struct-info
+#include "Transfer.c"
 
 int createSend(struct MIP_Frame* frame, char* msg, struct send *snd)
 {
@@ -100,6 +77,7 @@ int createEtherFrame(struct send *snd, uint8_t* iface_hwaddr, uint8_t* dst, stru
 
 int setARPReturn(char src, char dst, struct MIP_Frame* mipFrame){
 	//TRA 000, Length 0
+	//000 1111 0000 0000 0 = 7680
 	memset(mipframe->TRA_TTL_Payload, 0, (sizeof(mipframe->TRA_TTL_Payload)));
 	memset(mipframe->dstMIP, 0, (sizeof(mipframe->dstMIP)));
 	memset(mipframe->srcMIP, 0, (sizeof(mipframe->mipframe->srcMIP)));
@@ -110,7 +88,7 @@ int setARPReturn(char src, char dst, struct MIP_Frame* mipFrame){
 
 int setARP(char src, struct MIP_Frame* mipFrame){
 	//TRA 001, Length 0, DST = 11111111
-	//0011111000000000 = 15872
+	//001 1111 0000 0000 0 = 15872
 	memset(mipframe->TRA_TTL_Payload, ARP, (sizeof(mipframe->TRA_TTL_Payload)));
 	memset(mipframe->dstMIP, 255, (sizeof(mipframe->mipframe->mipframe->dstMIP)));
 	memset(mipframe->srcMIP, 0, (sizeof(mipframe->mipframe->srcMIP)));

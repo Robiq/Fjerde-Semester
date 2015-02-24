@@ -15,6 +15,39 @@
 #include <sys/ioctl.h>
 #include <bits/ioctls.h>
 
+#include "Structs.h"
+
+//HERE!!!
+int arpRet(struct send* recv)
+{
+	struct MIP_Frame* frm = send->frame;
+	uint8_t tst = frm->TRA_TTL_Payload[0];
+	if(tst == 0)	return 1;
+	return 0;
+}
+
+int arp(struct send* recv)
+{
+	struct MIP_Frame* frm = send->frame;
+	char tst = frm->TRA_TTL_Payload[0];
+	if()	return 1;
+	return 0;
+}
+
+int caseFind(struct ether_frame* frame)
+{	
+	//Arp-answer
+	if(arpRet(frame->contents)){
+
+	//Arp-package
+	} else if(arp(frame->contents)){
+
+	//Transport
+	}else{
+
+	}
+}
+
 //Tolk MIP-header og velg rett handlingsmønster!
 int findCase(struct ether_frame* frame, int debug)
 {

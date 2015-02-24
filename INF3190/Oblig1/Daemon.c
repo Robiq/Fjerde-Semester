@@ -19,6 +19,9 @@
 #include <sys/ioctl.h>
 #include <bits/ioctls.h>
 
+//To get Protocol.c, 
+#include "Protocol.c"
+
 #define ETH_P_MIP 0xFF
 #define maxCon 10
 #define maxSize 1500
@@ -26,7 +29,6 @@
 int raw, ipc;
 struct ARP-list* first;
 uint8_t myAdr[6];
-
 
 struct ARP-list
 {
