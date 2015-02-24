@@ -9,12 +9,14 @@
 #include <stdlib.h>
 
 int sock;
+char* daemonName;
 
 //Closes the server
 void closeProg()
 {
 	close(sock);
-	unlink(socketName);	
+	unlink(daemonName);
+	free(daemonName);
 	printf("\nSystem closing!\n");
 	exit(0);
 }
@@ -30,7 +32,6 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	const char* daemon = argv[1];
 
 	sock=socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1){
@@ -38,21 +39,28 @@ int main(int argc, char* argv[])
 		return -2;
 	}
 
+	daemonName = malloc(strlen(argv[1])+1);
+	strcpy(daemonName, argv[1]);
+
 	int activate=1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &activate, sizeof(int));
 
 	struct sockaddr_un bindaddr;
 	bindaddr.sun_family = AF_UNIX;
-	strncpy(bindaddr.sun_path, daemon, sizeof(bindaddr.sun_path));
+	strncpy(bindaddr.sun_path, daemonName, sizeof(bindaddr.sun_path));
 
 	if(bind(sock, (struct sockaddr*)&bindaddr, sizeof(bindaddr)))
 	{
 		perror("Error when binding socket!");
+		free(daemonName);
+		close(sock);
 		return -3;
 	}
 
 	if(listen(sock, SOMAXCONN)){
 		perror("Error during listening to socket!");
+		close(sock);
+		free(daemonName);
 		return -4;
 	}
 
@@ -68,8 +76,4 @@ int main(int argc, char* argv[])
 
 		close(con);
 	}
-
-	close(sock);
-	unlink(socketName);
-	return 0;
 }

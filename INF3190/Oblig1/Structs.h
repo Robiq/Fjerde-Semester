@@ -1,3 +1,5 @@
+#include <inttypes.h>
+
 #define ARP 15872
 #define ARPret 7680
 #define Routing 24064
@@ -14,7 +16,7 @@ struct ether_frame
 
 struct MIP_Frame
 {
-	uint8_t TRA_TTL_Payload[2];
+	uint16_t TRA_TTL_Payload[1];
 	uint8_t srcMIP[1];
 	uint8_t dstMIP[1];
 } __attribute__((packed));
