@@ -431,6 +431,7 @@ int main(int argc, char* argv[]){
 
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
+
 			char recvbuf[maxSize];
 			struct ether_frame *recvframe = (struct ether_frame*)recvbuf;
 
@@ -463,7 +464,7 @@ int main(int argc, char* argv[]){
 			debug=1;
 			#endif
 			
-			struct send *recvd= (struct send*) recvframe->contents;
+			struct send *recvd = (struct send*) recvframe->contents;
 			
 			//Create ethernet-frame & send-struct!
 			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);

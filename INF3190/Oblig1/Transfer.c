@@ -114,7 +114,7 @@ int sendIPC(int fd, char* buf)
 //Recieve raw
 int recRaw(int fd, struct ether_frame *recvd)
 {
-	ssize_t err=recv(fd, recvd, sizeof(struct ether_frame), 0);
+	ssize_t err=recv(fd, recvd, sizeof(maxSize), 0);
 
 	if(err==-1 || err==0)	return 0;
 
