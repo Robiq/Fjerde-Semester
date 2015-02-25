@@ -96,7 +96,7 @@ int sendRaw(int fd, struct ether_frame *snd)
 	printf("Eth_Proto: %04x\n", ntohs(*((uint16_t*)snd->eth_proto)));
 
 
-	ssize_t err=send(fd, snd, sizeof(snd), 0);
+	ssize_t err=send(fd, snd, sizeof(struct ether_frame), 0);
 
 	printf("Sent: %d\n", (int)err);
 
