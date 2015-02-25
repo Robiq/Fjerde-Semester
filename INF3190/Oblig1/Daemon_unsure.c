@@ -62,7 +62,6 @@ void closeProg(){
 	free(daemonName);
 	if(frmSet){
 		free(tmpBuf);
-		free(tmpFrame);
 	}
 	clearArp();
 
@@ -280,20 +279,18 @@ int main(int argc, char* argv[]){
 		//Looks for a socket connected to earlier!
 		if(FD_ISSET(accpt, &fds)){
 
-			printf("ArriveHERE?\n");
-
 			char buf[maxSize];
 
 			recIPC(accpt, buf);
 
 			//Håndter __ som skiller msg fra address
-			char msg [maxSize];
+			char msg[maxSize];
 			char dst[1];
 			decodeBuf(buf, msg, dst);
 			
 			size_t msgsize = sizeof(struct ether_frame)+ sizeof(struct send);
 			struct ether_frame *frame = malloc(msgsize);
-			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame));
+			struct MIP_Frame *mipFrame;
 			
 			size_t sndSize = strlen(msg);
 
@@ -308,10 +305,9 @@ int main(int argc, char* argv[]){
 					close(ipc);
 					clearArp();
 
-					if(frmSet)	free(tmpFrame);
+					if(frmSet)	free(tmpBuf);
 					free(daemonName);
 					free(frame);
-					free(mipFrame);
 
 					return -12;
 				}
@@ -325,10 +321,10 @@ int main(int argc, char* argv[]){
 					close(ipc);
 					clearArp();
 
-					if(frmSet)	free(tmpFrame);
+					if(frmSet)	free(tmpBuf);
 					free(daemonName);
 					free(frame);
-					free(mipFrame);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -13;
@@ -342,28 +338,28 @@ int main(int argc, char* argv[]){
 					close(ipc);
 					clearArp();
 
-					if(frmSet)	free(tmpFrame);
+					if(frmSet)	free(tmpBuf);
 					free(daemonName);
 					free(frame);
-					free(mipFrame);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -11;
 				}
 
-				free(mipFrame);
+
 				free(frame);
+				//??
 				free(sendInfo->frame);
 				free(sendInfo);
 				
 			} else{
 
 				if(frmSet){
-					free(tmpFrame);
 					free(tmpBuf);
 				}
 
-				tmpFrame = malloc(sizeof(struct MIP_Frame));
+				tmpFrame;
 
 				frmSet=1;
 
@@ -374,11 +370,11 @@ int main(int argc, char* argv[]){
 
 				printf("Sizeof: %d\n", (int)sizeof(mipFrame));
 				printf("MIPsrc: %d\n", (int)mipFrame->srcMIP[0]);
-				printf("TRA: %d\n", (int) mipFrame->TRA_TTL_Payload[0]);
+				printf("TRA: %d\n", (int) mipFrame->TRA_TTL_Payload);
 
 				//Create send-struct & ether-frame
 				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
-				//Set empty message
+				//TODO WUT
 				msg[0]='\0';
 
 				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
@@ -390,24 +386,24 @@ int main(int argc, char* argv[]){
 					close(ipc);
 					clearArp();
 
-					if(frmSet)	free(tmpFrame);
+					if(frmSet)	free(tmpBuf);
 					free(daemonName);
 					free(frame);
-					free(mipFrame);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -13;
 				}
 
 				printf("SendInfo srcMIP: %d\n", (int) sendInfo->frame->srcMIP[0]);
-				printf("sendInfo TRA: %d\n", (int) sendInfo->frame->TRA_TTL_Payload[0]);
+				printf("sendInfo TRA: %d\n", (int) sendInfo->frame->TRA_TTL_Payload);
 				printf("sendInfo size: %d\n", (int) sizeof(sendInfo->frame));
 
 				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
 
 				struct send *tst= (struct send*) frame->contents;
 				printf("Ether srcMIP: %d\n", (int) tst->frame->srcMIP[0]);
-				printf("Ether TRA: %d\n", (int) tst->frame->TRA_TTL_Payload[0]);
+				printf("Ether TRA: %d\n", (int) tst->frame->TRA_TTL_Payload);
 				printf("Ether size: %d\n", (int) sizeof(tst->frame));
 				
 				//SEND!
@@ -416,16 +412,15 @@ int main(int argc, char* argv[]){
 					close(raw);
 					close(ipc);
 					clearArp();
-					free(tmpFrame);
+					free(tmpBuf);
 					free(daemonName);
 					free(frame);
-					free(mipFrame);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -11;
 				}
 
-				free(mipFrame);
 				free(frame);
 
 				if(!setTempTransp(daemonName, sndSize, tmpFrame)){
@@ -436,13 +431,15 @@ int main(int argc, char* argv[]){
 					unlink(daemonName);
 					clearArp();
 
-					if(frmSet)	free(tmpFrame);
+					if(frmSet)	free(tmpBuf);
 					free(daemonName);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -12;
 				}
 				tmpBuf = strdup(buf);
+				//??
 				free(sendInfo->frame);
 				free(sendInfo);
 
@@ -492,7 +489,7 @@ int main(int argc, char* argv[]){
 			printf("Sizeof send: %d\n", (int)sizeof(recvd));
 			printf("Sizeof frame: %d\n", (int)sizeof(recvd->frame));
 			printf("Src-addr: %d\n", (int) recvd->frame->srcMIP[0]);
-			printf("Packet-type: %d\n", (int) recvd->frame->TRA_TTL_Payload[0]);
+			printf("Packet-type: %d\n", (int) recvd->frame->TRA_TTL_Payload);
 			
 			//Create ethernet-frame & send-struct!
 			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);
@@ -510,12 +507,10 @@ int main(int argc, char* argv[]){
 				clearArp();
 
 				if(frmSet){
-					free(tmpFrame);
 					free(tmpBuf);
 				}
 				free(daemonName);
 				free(frame);
-				free(recvframe);
 				return -8;
 				//Recieved Arp-response.
 			} else if(err == 2){
@@ -533,12 +528,11 @@ int main(int argc, char* argv[]){
 					clearArp();
 
 					if(frmSet){
-						free(tmpFrame);
 						free(tmpBuf);
 					}
-					free(recvframe);
 					free(daemonName);
 					free(frame);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -13;
@@ -554,22 +548,20 @@ int main(int argc, char* argv[]){
 					clearArp();
 
 					if(frmSet){
-						free(tmpFrame);
 						free(tmpBuf);
 					}
-					free(recvframe);
 					free(daemonName);
 					free(frame);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -11;
 				}
 
 				free(frame);
-				free(tmpFrame);
 				free(tmpBuf);
 				frmSet=0;
-				free(recvframe);
+				//??
 				free(sendInfo->frame);
 				free(sendInfo);
 
@@ -582,7 +574,7 @@ int main(int argc, char* argv[]){
 					saveArp((char)recvd->frame->srcMIP[1], recvframe->src_addr);
 				}
 				//Send Arp-response!
-				struct MIP_Frame* frm = malloc(sizeof(struct MIP_Frame));
+				struct MIP_Frame* frm;
 				//Create Arp-response-frame.
 				setARPReturn(daemonName, recvd->frame->srcMIP, frm);
 				//Create send-struct
@@ -595,13 +587,12 @@ int main(int argc, char* argv[]){
 					clearArp();
 
 					if(frmSet){
-						free(tmpFrame);
 						free(tmpBuf);
 					}
 					free(daemonName);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
-					free(frm);
 					free(frame);
 					return -13;
 				}
@@ -616,19 +607,18 @@ int main(int argc, char* argv[]){
 					clearArp();
 
 					if(frmSet){
-						free(tmpFrame);
 						free(tmpBuf);
 					}
 					free(daemonName);
+					//??
 					free(sendInfo->frame);
 					free(sendInfo);
-					free(frm);
 					free(frame);
 					return -11;
 				}
 
 				free(frame);
-				free(frm);
+				//??
 				free(sendInfo->frame);
 				free(sendInfo);
 
@@ -642,7 +632,6 @@ int main(int argc, char* argv[]){
 					clearArp();
 
 					if(frmSet){
-						free(tmpFrame);
 						free(tmpBuf);
 					}
 					free(daemonName);
@@ -661,9 +650,6 @@ int main(int argc, char* argv[]){
 		
 		if(FD_ISSET(ipc, &fds)){
 			//Connected with ipc
-
-			printf("O HAI :)\n");
-
 			accpt = accept(ipc, NULL, NULL);
 			if(accpt == -1){
 				close(raw);

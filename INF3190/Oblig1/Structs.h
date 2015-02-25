@@ -16,9 +16,9 @@ struct ether_frame
 
 struct MIP_Frame
 {
-	uint16_t TRA_TTL_Payload[1];
 	char srcMIP[1];
 	char dstMIP[1];
+	uint16_t TRA_TTL_Payload[1];
 } __attribute__((packed));
 
 struct send

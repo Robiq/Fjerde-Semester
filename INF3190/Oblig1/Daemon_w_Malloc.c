@@ -280,14 +280,12 @@ int main(int argc, char* argv[]){
 		//Looks for a socket connected to earlier!
 		if(FD_ISSET(accpt, &fds)){
 
-			printf("ArriveHERE?\n");
-
 			char buf[maxSize];
 
 			recIPC(accpt, buf);
 
 			//Håndter __ som skiller msg fra address
-			char msg [maxSize];
+			char msg[maxSize];
 			char dst[1];
 			decodeBuf(buf, msg, dst);
 			
@@ -378,7 +376,7 @@ int main(int argc, char* argv[]){
 
 				//Create send-struct & ether-frame
 				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
-				//Set empty message
+				//TODO WUT
 				msg[0]='\0';
 
 				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
@@ -661,9 +659,6 @@ int main(int argc, char* argv[]){
 		
 		if(FD_ISSET(ipc, &fds)){
 			//Connected with ipc
-
-			printf("O HAI :)\n");
-
 			accpt = accept(ipc, NULL, NULL);
 			if(accpt == -1){
 				close(raw);

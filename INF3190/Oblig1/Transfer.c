@@ -48,21 +48,19 @@ int arp(struct send* recv)
 
 int caseFind(struct ether_frame* frame)
 {	
-	struct send* tmp = (struct send*)frame->contents;
 	//Arp-answer
-	if(arpRet(tmp)){
+	if(arpRet((struct send*)frame->contents)){
 		//Save in ARP-list, send saved packet, in daemon
 		return 2;
 	//Arp-package
-	} else if(arp(tmp)){
+	} else if(arp((struct send*)frame->contents)){
 		//Return ARP-response-packet & save sender in ARP-cache, in daemon
 		return 3;
 	//Transport
 	}else{
+		struct send *recvd= (struct send*) frame->contents;
 		//Send IPC-packet, in daemon
-		if(tmp->message != NULL){
-			return 1;
-		}
+		if(recvd->message != NULL)	return 1;
 		//Error! Something wrong with message
 		return -1;
 	}
@@ -90,14 +88,17 @@ int findCase(struct ether_frame* frame, int debug)
 
 //Send raw
 int sendRaw(int fd, struct ether_frame *snd)
-{
-	ssize_t err=send(fd, snd, sizeof(struct ether_frame), 0);
-
-	///* Error handling
-	printf("Sent: %d\n", (int) err);
-	printf("Sent addr: ");
+{	
+	printf("Src: ");
+	printMAC(snd->src_addr);
+	printf("Dst: ");
 	printMAC(snd->dst_addr);
-	//*/
+	printf("Eth_Proto: %04x\n", ntohs(*((uint16_t*)snd->eth_proto)));
+
+
+	ssize_t err=send(fd, snd, sizeof(snd), 0);
+
+	printf("Sent: %d\n", (int)err);
 
 	if(err==-1 || err==0)	return 0;
 
@@ -115,9 +116,9 @@ int sendIPC(int fd, char* buf)
 }
 
 //Recieve raw
-int recRaw(int fd, char* recvd)
+int recRaw(int fd, char *recvd)
 {
-	ssize_t err=recv(fd, recvd, maxSize, 0);
+	ssize_t err=recv(fd, recvd, sizeof(maxSize), 0);
 
 	if(err==-1 || err==0)	return 0;
 

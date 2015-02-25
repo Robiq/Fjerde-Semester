@@ -26,7 +26,7 @@ int createSend(struct MIP_Frame* frame, char* msg, struct send *snd)
 
 	memcpy(snd->frame, frame, sizeof(struct MIP_Frame));
 	if(msg != NULL)	memcpy(snd->message, msg, strlen(msg));
-	else	memset(snd->message, 0, sizeof(struct send));
+	else	memset(snd->message, 0, sizeof(maxSize));
 
 	return 1;
 }
