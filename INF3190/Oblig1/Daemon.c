@@ -36,10 +36,11 @@ struct Arp_list
 	struct Arp_list *next;
 };
 
-int raw, ipc;
-char *daemonName;
+int raw, ipc, frmSet=0;;
+char *daemonName, *tmpBuf;
 struct Arp_list* first;
 uint8_t myAdr[6];
+struct MIP_Frame *tmpFrame;
 
 void clearArp()
 {
@@ -59,6 +60,10 @@ void closeProg(){
 	close(raw);
 	unlink(daemonName);
 	free(daemonName);
+	if(frmSet){
+		free(tmpBuf);
+		free(tmpFrame);
+	}
 	clearArp();
 
 	printf("\nSystem closing!\n");
@@ -155,7 +160,7 @@ int main(int argc, char* argv[]){
 	//Handles ctrl+c, for closing the server
 	signal(SIGINT, closeProg);
 
-	int err;
+	int err, accpt=-1;
 	fd_set fds;
 
 	//Creates a socket for requests.
@@ -245,8 +250,9 @@ int main(int argc, char* argv[]){
 	int fd_max;
 	int i=0;
 
-	if(raw > ipc)	fd_max = raw;
-	else	fd_max = ipc;
+	if(raw > ipc && raw > accpt)	fd_max = raw;
+	else if (ipc > raw && ipc > accpt)	fd_max = ipc;
+	else	fd_max=accpt;
 
 	//Runs the server
 	while(i<maxCon){
@@ -255,6 +261,9 @@ int main(int argc, char* argv[]){
 
 		FD_SET(raw, &fds);
 		FD_SET(ipc, &fds);
+		if(accpt!=-1){
+			FD_SET(accpt, &fds);
+		}
 		
 		//Checks if sockets are avalible.
 		int sel=select(fd_max+1, &fds, NULL, NULL, NULL);
@@ -268,16 +277,164 @@ int main(int argc, char* argv[]){
 			return -6;
 		}
 
-		struct MIP_Frame *tmpFrame;
-		int frmSet=0;
-		char *tmpBuf;
+		//Looks for a socket connected to earlier!
+		if(FD_ISSET(accpt, &fds)){
 
+			printf("Y U NO HAPPEN?\n");
 
+			char buf[maxSize];
+
+			recIPC(accpt, buf);
+
+			//Håndter __ som skiller msg fra address
+			char msg[maxSize];
+			char dst[1];
+			decodeBuf(buf, msg, dst);
+			
+			size_t msgsize = sizeof(struct ether_frame)+ sizeof(struct send);
+			struct ether_frame *frame = malloc(msgsize);
+			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame));
+			
+			size_t sndSize = strlen(msg);
+
+			uint8_t mac[6];
+
+			if(findArp(dst[0], mac)){
+				//Create frames
+				if(!setTransport(daemonName, dst, sndSize, mipFrame)){
+					//ERROR!
+					perror("Error during framecreation(Transport)");
+					close(raw);
+					close(ipc);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+
+					return -12;
+				}
+
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
+
+				if(!createSend(mipFrame, msg, sendInfo)){
+					//ERROR!
+					perror("Error during framecreation(SEND)");
+					close(raw);
+					close(ipc);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -13;
+				}
+				createEtherFrame(sendInfo, myAdr, mac, frame);
+				
+				//Send raw
+				if(!sendRaw(raw, frame)){
+					perror("Error during raw sending");
+					close(raw);
+					close(ipc);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -11;
+				}
+
+				free(mipFrame);
+				free(frame);
+				free(sendInfo->frame);
+				free(sendInfo);
+				
+			} else{
+
+				if(frmSet)	free(tmpFrame);
+
+				tmpFrame = malloc(sizeof(struct MIP_Frame));
+				frmSet=1;
+
+				uint8_t dst_addr[6];
+
+				//Create arp-frame
+				err = setARP(daemonName, mipFrame);
+				//Create send-struct & ether-frame
+				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
+				msg[0]='\0';
+
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
+
+				if(!createSend(mipFrame, NULL, sendInfo)){
+					//ERROR!
+					perror("Error during framecreation(SEND)");
+					close(raw);
+					close(ipc);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -13;
+				}
+				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
+				
+				//SEND!
+				if(!sendRaw(raw, frame)){
+					perror("Error during raw sending");
+					close(raw);
+					close(ipc);
+					clearArp();
+					free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -11;
+				}
+
+				free(mipFrame);
+				free(frame);
+
+				if(!setTempTransp(daemonName, sndSize, tmpFrame)){
+					//ERROR!
+					printf("Error during framecreation(TempTrans), line 617!\n");
+					close(raw);
+					close(ipc);
+					unlink(daemonName);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -12;
+				}
+				tmpBuf = strdup(buf);
+				free(sendInfo->frame);
+				free(sendInfo);
+				printf("SENTTORAW\n");
+			}		
+		}
 
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
 			char recvbuf[maxSize];
 			struct ether_frame *recvframe = (struct ether_frame*)recvbuf;
+
+			printf("ARRIVE\n");
 
 			//Connected with a raw socket
 			err=recRaw(raw, (struct ether_frame*) recvbuf);
@@ -296,6 +453,7 @@ int main(int argc, char* argv[]){
 				return -11;
 			}
 
+			printf("ARRIVE2\n");
 
 			int debug=0;
 
@@ -311,6 +469,7 @@ int main(int argc, char* argv[]){
 			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);
 			struct ether_frame *frame = malloc(msgsize);
 			
+			printf("ARRIVE3\n");
 
 			err=findCase(recvframe, debug);
 
@@ -469,10 +628,8 @@ int main(int argc, char* argv[]){
 		
 		if(FD_ISSET(ipc, &fds)){
 			//Connected with ipc
-
-			char buf[maxSize];
-
-			int accpt = accept(ipc, NULL, NULL);
+			//TODO - connects here, then fails!
+			accpt = accept(ipc, NULL, NULL);
 			if(accpt == -1){
 				close(raw);
 				close(ipc);
@@ -481,147 +638,6 @@ int main(int argc, char* argv[]){
 				if(frmSet)	free(tmpFrame);
 				free(daemonName);
 				return -10;
-			}
-
-			recIPC(accpt, buf);
-
-			//Håndter __ som skiller msg fra address
-			char msg[maxSize];
-			char dst[1];
-			decodeBuf(buf, msg, dst);
-			
-			size_t msgsize = sizeof(struct ether_frame)+ sizeof(struct send);
-			struct ether_frame *frame = malloc(msgsize);
-			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame));
-			
-			size_t sndSize = strlen(msg);
-			
-
-
-			uint8_t mac[6];
-
-			if(findArp(dst[0], mac)){
-				//Create frames
-				if(!setTransport(daemonName, dst, sndSize, mipFrame)){
-					//ERROR!
-					perror("Error during framecreation(Transport)");
-					close(raw);
-					close(ipc);
-					clearArp();
-
-					if(frmSet)	free(tmpFrame);
-					free(daemonName);
-					free(frame);
-					free(mipFrame);
-
-					return -12;
-				}
-
-				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
-
-				if(!createSend(mipFrame, msg, sendInfo)){
-					//ERROR!
-					perror("Error during framecreation(SEND)");
-					close(raw);
-					close(ipc);
-					clearArp();
-
-					if(frmSet)	free(tmpFrame);
-					free(daemonName);
-					free(frame);
-					free(mipFrame);
-					free(sendInfo->frame);
-					free(sendInfo);
-					return -13;
-				}
-				createEtherFrame(sendInfo, myAdr, mac, frame);
-				
-				//Send raw
-				if(!sendRaw(raw, frame)){
-					perror("Error during raw sending");
-					close(raw);
-					close(ipc);
-					clearArp();
-
-					if(frmSet)	free(tmpFrame);
-					free(daemonName);
-					free(frame);
-					free(mipFrame);
-					free(sendInfo->frame);
-					free(sendInfo);
-					return -11;
-				}
-
-				free(mipFrame);
-				free(frame);
-				free(sendInfo->frame);
-				free(sendInfo);
-				
-			} else{
-				tmpFrame = malloc(sizeof(struct MIP_Frame));
-				frmSet=1;
-
-				uint8_t dst_addr[6];
-
-				//Create arp-frame
-				err = setARP(daemonName, mipFrame);
-				//Create send-struct & ether-frame
-				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
-				msg[0]='\0';
-
-				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
-
-				if(!createSend(mipFrame, NULL, sendInfo)){
-					//ERROR!
-					perror("Error during framecreation(SEND)");
-					close(raw);
-					close(ipc);
-					clearArp();
-
-					if(frmSet)	free(tmpFrame);
-					free(daemonName);
-					free(frame);
-					free(mipFrame);
-					free(sendInfo->frame);
-					free(sendInfo);
-					return -13;
-				}
-				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
-				
-				//SEND!
-				if(!sendRaw(raw, frame)){
-					perror("Error during raw sending");
-					close(raw);
-					close(ipc);
-					clearArp();
-					free(tmpFrame);
-					free(daemonName);
-					free(frame);
-					free(mipFrame);
-					free(sendInfo->frame);
-					free(sendInfo);
-					return -11;
-				}
-
-				free(mipFrame);
-				free(frame);
-
-				if(!setTempTransp(daemonName, sndSize, tmpFrame)){
-					//ERROR!
-					perror("Error during framecreation(TempTrans)");
-					close(raw);
-					close(ipc);
-					clearArp();
-
-					if(frmSet)	free(tmpFrame);
-					free(daemonName);
-					free(sendInfo->frame);
-					free(sendInfo);
-					return -12;
-				}
-				tmpBuf = strdup(buf);
-				free(sendInfo->frame);
-				free(sendInfo);
 			}
 		}
 		i++;

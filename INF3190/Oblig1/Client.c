@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 	}
 
 
-	//printf("%s\n%s\n%s\n", argv[1], argv[2], argv[3]);
+	//printf("%s\n%s\n%s\#n", argv[1], argv[2], argv[3]);
 
 	int sock=socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1){
@@ -80,15 +80,12 @@ int main(int argc, char* argv[])
 	ssize_t recieved=0;
 	double diff=0;
 
+	printf("SentMSG\n");
+
 	while(diff < 1.0 && recieved == 0){
 
 		char buf[5];
-
-		recieved = read(sock, buf, 5);
 		
-		time_t now;
-		now = time(NULL);
-
 		if(recieved < 0){
 			perror("Error during read from socket");
 			close(sock);
@@ -99,7 +96,15 @@ int main(int argc, char* argv[])
 			printf("Message recieved: %s\n", buf);
 		}
 
+		if(diff>1.0)	break;
+
+		recieved = read(sock, buf, 5);
+		
+		time_t now;
+		now = time(NULL);
+
 		diff = difftime((now), (start));
+
 	}
 	if(diff < 1.0){
 		printf("Time between sending ping and recieving response was: %f seconds\n", diff);

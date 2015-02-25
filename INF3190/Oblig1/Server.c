@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <signal.h>
 #include <stdlib.h>
+#define maxSize 1500
 
 int sock;
 char* daemonName;
@@ -49,31 +50,22 @@ int main(int argc, char* argv[])
 	bindaddr.sun_family = AF_UNIX;
 	strncpy(bindaddr.sun_path, daemonName, sizeof(bindaddr.sun_path));
 
-	if(bind(sock, (struct sockaddr*)&bindaddr, sizeof(bindaddr)))
-	{
-		perror("Error when binding socket!");
+	if(connect(sock, (struct sockaddr*)&bindaddr, sizeof(bindaddr)) == -1){
+		perror("Error during connection to socket");
 		free(daemonName);
 		close(sock);
 		return -3;
 	}
 
-	if(listen(sock, SOMAXCONN)){
-		perror("Error during listening to socket!");
-		close(sock);
-		free(daemonName);
-		return -4;
-	}
-
 	while(1){
-		int con = accept(sock, NULL, NULL);
-		char buf[100];
-		ssize_t recieved = read(con, buf, 99);
+		char buf[maxSize];
+		ssize_t recieved = read(sock, buf, maxSize);
 		if(recieved > 0){
 			buf[recieved] = 0;
 			printf("Recieved '%s' from client!\n", buf);
-			write(con, "Pong", 4);
+			write(sock, "Pong", 4);
 		}
 
-		close(con);
 	}
+	close(sock);
 }
