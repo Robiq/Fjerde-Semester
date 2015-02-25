@@ -89,7 +89,12 @@ int findCase(struct ether_frame* frame, int debug)
 //Send raw
 int sendRaw(int fd, struct ether_frame *snd)
 {
-	ssize_t err=send(fd, snd, sizeof(snd), 0);
+	ssize_t err=send(fd, snd, sizeof(struct ether_frame), 0);
+
+	printf("Sent: %d\n", (int) err);
+	printf("Sent addr: ");
+	printMAC(snd->dst_addr);
+
 
 	if(err==-1 || err==0)	return 0;
 
@@ -109,7 +114,7 @@ int sendIPC(int fd, char* buf)
 //Recieve raw
 int recRaw(int fd, struct ether_frame *recvd)
 {
-	ssize_t err=recv(fd, recvd, sizeof(recvd), 0);
+	ssize_t err=recv(fd, recvd, sizeof(struct ether_frame), 0);
 
 	if(err==-1 || err==0)	return 0;
 

@@ -250,9 +250,8 @@ int main(int argc, char* argv[]){
 	int fd_max;
 	int i=0;
 
-	if(raw > ipc && raw > accpt)	fd_max = raw;
-	else if (ipc > raw && ipc > accpt)	fd_max = ipc;
-	else	fd_max=accpt;
+	if(raw > ipc)	fd_max = raw;
+	else if (ipc > raw)	fd_max = ipc;
 
 	//Runs the server
 	while(i<maxCon){
@@ -263,6 +262,7 @@ int main(int argc, char* argv[]){
 		FD_SET(ipc, &fds);
 		if(accpt!=-1){
 			FD_SET(accpt, &fds);
+			fd_max=accpt;
 		}
 		
 		//Checks if sockets are avalible.
@@ -279,8 +279,6 @@ int main(int argc, char* argv[]){
 
 		//Looks for a socket connected to earlier!
 		if(FD_ISSET(accpt, &fds)){
-
-			printf("Y U NO HAPPEN?\n");
 
 			char buf[maxSize];
 
@@ -369,6 +367,7 @@ int main(int argc, char* argv[]){
 				err = setARP(daemonName, mipFrame);
 				//Create send-struct & ether-frame
 				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
+				//TODO WUT
 				msg[0]='\0';
 
 				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(mipFrame));
@@ -425,6 +424,7 @@ int main(int argc, char* argv[]){
 				tmpBuf = strdup(buf);
 				free(sendInfo->frame);
 				free(sendInfo);
+
 				printf("SENTTORAW\n");
 			}		
 		}
