@@ -16,17 +16,17 @@ int createSend(struct MIP_Frame* frame, char* msg, struct send *snd)
 	if(tst > maxSize)	return 0;
 
 	snd->frame = malloc(sizeof(struct MIP_Frame));
-	//Legg in check på alle pointer i frame & sizeof Frame
-	//Skriv ut alt i frame!
 
+	/* Error handling!
 	printf("Src: %x\n", frame->srcMIP[0]);
 	printf("Dst: %x\n", frame->dstMIP[0]);
 	printf("TTL etc: %d\n", frame->TRA_TTL_Payload[0]);
 	printf("Sizeof frame: %d\n", (int)sizeof(frame));
+	*/
 
 	memcpy(snd->frame, frame, sizeof(struct MIP_Frame));
 	if(msg != NULL)	memcpy(snd->message, msg, strlen(msg));
-	else	memset(snd->message, 0, sizeof(snd->message));
+	else	memset(snd->message, 0, sizeof(struct send));
 
 	return 1;
 }

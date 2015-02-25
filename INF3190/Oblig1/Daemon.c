@@ -432,13 +432,14 @@ int main(int argc, char* argv[]){
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
 
-			char recvbuf[maxSize];
+			char recvbuf[maxSize]={0};
+			
 			struct ether_frame *recvframe = (struct ether_frame*)recvbuf;
 
 			printf("ARRIVE\n");
 
 			//Connected with a raw socket
-			err=recRaw(raw, (struct ether_frame*) recvbuf);
+			err=recRaw(raw, recvbuf);
 			if(!err){
 				printf("Error while reciving from raw!\n");
 				close(raw);
@@ -466,6 +467,12 @@ int main(int argc, char* argv[]){
 			
 			struct send *recvd = (struct send*) recvframe->contents;
 			
+			printf("Sizeof : %d\n", (int)sizeof(recvframe));
+			printf("Sizeof send: %d\n", (int)sizeof(recvd));
+			printf("Sizeof frame: %d\n", (int)sizeof(recvd->frame));
+			printf("Src-addr: %d\n", (int) recvd->frame->srcMIP[0]);
+			printf("Packet-type: %d\n", (int) recvd->frame->TRA_TTL_Payload[0]);
+			
 			//Create ethernet-frame & send-struct!
 			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);
 			struct ether_frame *frame = malloc(msgsize);
@@ -487,6 +494,7 @@ int main(int argc, char* argv[]){
 				}
 				free(daemonName);
 				free(frame);
+				free(recvframe);
 				return -8;
 				//Recieved Arp-response.
 			} else if(err == 2){
@@ -507,6 +515,7 @@ int main(int argc, char* argv[]){
 						free(tmpFrame);
 						free(tmpBuf);
 					}
+					free(recvframe);
 					free(daemonName);
 					free(frame);
 					free(sendInfo->frame);
@@ -527,6 +536,7 @@ int main(int argc, char* argv[]){
 						free(tmpFrame);
 						free(tmpBuf);
 					}
+					free(recvframe);
 					free(daemonName);
 					free(frame);
 					free(sendInfo->frame);
@@ -538,6 +548,7 @@ int main(int argc, char* argv[]){
 				free(tmpFrame);
 				free(tmpBuf);
 				frmSet=0;
+				free(recvframe);
 				free(sendInfo->frame);
 				free(sendInfo);
 
