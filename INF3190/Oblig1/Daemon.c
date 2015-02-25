@@ -491,6 +491,7 @@ int main(int argc, char* argv[]){
 			printf("Sizeof : %d\n", (int)sizeof(recvframe));
 			printf("Sizeof send: %d\n", (int)sizeof(recvd));
 			printf("Sizeof frame: %d\n", (int)sizeof(recvd->frame));
+			//ERROR HER HOS RECV! Wireshark for å sjekke sentFrame, malloc-check for å sjekke recv-daemon! TODO
 			printf("Src-addr: %d\n", (int) recvd->frame->srcMIP[0]);
 			printf("Packet-type: %d\n", (int) recvd->frame->TRA_TTL_Payload[0]);
 			
