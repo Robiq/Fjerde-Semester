@@ -36,10 +36,8 @@ struct Arp_list
 	struct Arp_list *next;
 };
 
-int raw, ipc, retSet=0, frmSet=0;
-char *daemonName;
-char ret[1];
-size_t len=0;
+int raw, ipc, frmSet=0;;
+char *daemonName, *tmpBuf;
 struct Arp_list* first;
 uint8_t myAdr[6];
 struct MIP_Frame *tmpFrame;
@@ -63,6 +61,7 @@ void closeProg(){
 	unlink(daemonName);
 	free(daemonName);
 	if(frmSet){
+		free(tmpBuf);
 		free(tmpFrame);
 	}
 	clearArp();
@@ -91,28 +90,26 @@ static int get_if_hwaddr(int sock, const char* devname, uint8_t hwaddr[6])
 }
 
 //Finds mac-addr
-int findArp(char dst[], uint8_t* macAd)
-{	
-	if(first->next!=NULL){
-		struct Arp_list* this=first->next;
-		do{
-			if(this->MIP[0] == (char)dst[0]){
-				memcpy(macAd, this->MAC, 6);
-				return 1;
-			}
-			this=this->next;
-		}while(this->next != NULL);
+int findArp(char dst, uint8_t* macAd)
+{
+	struct Arp_list* this=first;
+	while(this->next != NULL){
+		if(this->MIP[0] == dst){
+			macAd=this->MAC;
+			return 1;
+		}
+		this=this->next;
 	}
 	return 0;
 }
 //Saves an APR-resoult
-int saveArp(char dst[], uint8_t* mac)
+int saveArp(char dst, uint8_t* mac)
 {
 	struct Arp_list* this=first;
 	while(this->next != NULL)	this=this->next;
 
 	struct Arp_list* add=malloc(sizeof(struct Arp_list));
-	add->MIP[0]= (char) dst[0];
+	add->MIP[0]= dst;
 	memcpy(add->MAC, mac, 6);
 	this->next=add;
 	add->next=NULL;
@@ -123,20 +120,17 @@ int saveArp(char dst[], uint8_t* mac)
 void printArp()
 {
 	printf("\nArp_list:\n");
-	if(first->next != NULL){
-		struct Arp_list* this=first->next;
-		while(this->next != NULL){
-			printf("MIP-ADR: %c\n", this->MIP[0]);
-			printf("MAC-ADR: ");
-			printMAC(this->MAC);
-			this=this->next;
-		}
-
+	struct Arp_list* this=first;
+	while(this->next != NULL){
 		printf("MIP-ADR: %c\n", this->MIP[0]);
 		printf("MAC-ADR: ");
 		printMAC(this->MAC);
-		printf("---------------------\n\n");
+		this=this->next;
 	}
+
+	printf("MIP-ADR: %c\n", this->MIP[0]);
+	printf("MAC-ADR: ");
+	printMAC(this->MAC);
 }
 
 void decodeBuf(const char* buf, char* msg, char* dst)
@@ -286,6 +280,8 @@ int main(int argc, char* argv[]){
 		//Looks for a socket connected to earlier!
 		if(FD_ISSET(accpt, &fds)){
 
+			printf("ArriveHERE?\n");
+
 			char buf[maxSize];
 
 			recIPC(accpt, buf);
@@ -295,29 +291,18 @@ int main(int argc, char* argv[]){
 			char dst[1];
 			decodeBuf(buf, msg, dst);
 			
-			if(retSet){
-				dst[0]=ret[0];
-				retSet=0;
-			}
-
-			#ifdef DEBUG
-			printf("In accpt:\nmsg: %s. Len: %d\n", msg, (int)strlen(msg));
-			printf("Dst: %d\n", (int)dst[0]);
-			#endif
-
-			size_t sndSize = strlen(msg);
-
-			size_t msgsize = (sizeof(struct ether_frame) + sndSize + sizeof(struct MIP_Frame));
-			//Test TODO RM printf("Msgsize: %d\n", (int) msgsize);
+			size_t msgsize = (sizeof(struct ether_frame)+ sizeof(struct send) + sizeof(msg) + sizeof(struct MIP_Frame));
+			printf("Msgsize: %d\n", (int) msgsize);
 			struct ether_frame *frame = malloc(msgsize);
-			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame) + sndSize);
+			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame));
 			
+			size_t sndSize = strlen(msg);
 
 			uint8_t mac[6];
 
-			if(findArp(dst, mac)){
+			if(findArp(dst[0], mac)){
 				//Create frames
-				if(!setTransport(daemonName, dst, sndSize, msg, mipFrame)){
+				if(!setTransport(daemonName, dst, sndSize, mipFrame)){
 					//ERROR!
 					perror("Error during framecreation(Transport)");
 					close(raw);
@@ -332,10 +317,29 @@ int main(int argc, char* argv[]){
 					return -12;
 				}
 
-				createEtherFrame(mipFrame, sndSize, myAdr, mac, frame);
+				struct send *sendInfo = malloc(sizeof(struct send) + sndSize + sizeof(struct MIP_Frame));
+				
+				printf("Sizeof sendInfo %d\n", (int) (sizeof(struct send) + sndSize + sizeof(struct MIP_Frame)));
+
+				if(!createSend(mipFrame, msg, sendInfo)){
+					//ERROR!
+					perror("Error during framecreation(SEND)");
+					close(raw);
+					close(ipc);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -13;
+				}
+				createEtherFrame(sendInfo, myAdr, mac, frame);
 				
 				//Send raw
-				if(!sendRaw(raw, msgsize, frame)){
+				if(!sendRaw(raw, frame)){
 					perror("Error during raw sending");
 					close(raw);
 					close(ipc);
@@ -345,18 +349,24 @@ int main(int argc, char* argv[]){
 					free(daemonName);
 					free(frame);
 					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -11;
 				}
+
 				free(mipFrame);
 				free(frame);
+				free(sendInfo->frame);
+				free(sendInfo);
 				
 			} else{
 
 				if(frmSet){
 					free(tmpFrame);
+					free(tmpBuf);
 				}
 
-				tmpFrame = malloc((sizeof(struct MIP_Frame)) + sndSize);
+				tmpFrame = malloc(sizeof(struct MIP_Frame));
 
 				frmSet=1;
 
@@ -365,31 +375,53 @@ int main(int argc, char* argv[]){
 				//Create arp-frame
 				err = setARP(daemonName, mipFrame);
 
-				/* Test TODO rm
 				printf("Sizeof: %d\n", (int)sizeof(mipFrame));
 				printf("MIPsrc: %d\n", (int)mipFrame->srcMIP[0]);
 				printf("TRA: %d\n", (int) mipFrame->TRA_TTL_Payload[0]);
-				*/
 
-				//Create ether-frame
+				//Create send-struct & ether-frame
 				memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
+				//Set empty message
+				msg[0]='\0';
 
-				createEtherFrame(mipFrame, 0, myAdr, dst_addr, frame);
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
+				printf("Sizeof sendInfo %d\n", (int) (sizeof(struct send) + sizeof(struct MIP_Frame)));
 
-				/*//TESTEST TODO REMOVE - Gives error, do not CARE!
-				struct MIP_Frame *tst = malloc(sizeof(struct MIP_Frame));
-				tst=(struct MIP_Frame*)frame->contents;
+				//char *testest=strdup("Four");
+				
 
-				printf("Ether srcMIP: %d\n", (int) tst->srcMIP[0]);
-				printf("Ether TRA: %d\n", (int) tst->TRA_TTL_Payload[0]);
-				printf("Ether MIP size: %d\n", (int) sizeof(tst));
+				if(!createSend(mipFrame, NULL, sendInfo)){
+					//ERROR!
+					perror("Error during framecreation(SEND)");
+					close(raw);
+					close(ipc);
+					clearArp();
+
+					if(frmSet)	free(tmpFrame);
+					free(daemonName);
+					free(frame);
+					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -13;
+				}
+
+				printf("SendInfo srcMIP: %d\n", (int) sendInfo->frame->srcMIP[0]);
+				printf("sendInfo TRA: %d\n", (int) sendInfo->frame->TRA_TTL_Payload[0]);
+				printf("sendInfo MIP size: %d\n", (int) sizeof(sendInfo->frame));
+				printf("sendInfo size: %d\n", (int) sizeof(sendInfo));
+				printf("Myaddr size: %d Dst_addr size: %d\n", (int) sizeof(myAdr), (int) sizeof(dst_addr) );
+
+				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
+
+				struct send *tst= (struct send*) frame->contents;
+				printf("Ether srcMIP: %d\n", (int) tst->frame->srcMIP[0]);
+				printf("Ether TRA: %d\n", (int) tst->frame->TRA_TTL_Payload[0]);
+				printf("Ether MIP size: %d\n", (int) sizeof(tst->frame));
 				printf("Ether size: %d\n", (int) sizeof(frame));
 				
-				free(tst);
-				*/
-
 				//SEND!
-				if(!sendRaw(raw,(sizeof(struct ether_frame)+sizeof(struct MIP_Frame)), frame)){
+				if(!sendRaw(raw, frame)){
 					perror("Error during raw sending");
 					close(raw);
 					close(ipc);
@@ -398,39 +430,45 @@ int main(int argc, char* argv[]){
 					free(daemonName);
 					free(frame);
 					free(mipFrame);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -11;
 				}
+
 				free(mipFrame);
 				free(frame);
 
-				len=sndSize;
-
-				if(!setTempTransp(daemonName, sndSize, msg, tmpFrame)){
+				if(!setTempTransp(daemonName, sndSize, tmpFrame)){
 					//ERROR!
-					printf("Error during framecreation(TempTrans), line 390!\n");
+					printf("Error during framecreation(TempTrans), line 617!\n");
 					close(raw);
 					close(ipc);
 					unlink(daemonName);
 					clearArp();
 
-					if(frmSet){
-						free(tmpFrame);
-					}
+					if(frmSet)	free(tmpFrame);
 					free(daemonName);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -12;
 				}
+				tmpBuf = strdup(buf);
+				free(sendInfo->frame);
+				free(sendInfo);
+
+				printf("SENTTORAW\n");
 			}		
 		}
 
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
 			
-			char buf[1600];
+			struct ether_frame *recvframe = malloc(sizeof(struct ether_frame));
 
-			struct ether_frame *recvframe = (struct ether_frame*)buf;
+			printf("ARRIVE\n");
 
 			//Connected with a raw socket
-			err=recRaw(raw, buf);
+			err=recRaw(raw, recvframe);
 			if(!err){
 				printf("Error while reciving from raw!\n");
 				close(raw);
@@ -439,49 +477,51 @@ int main(int argc, char* argv[]){
 
 				if(frmSet){
 					free(tmpFrame);
+					free(tmpBuf);
 				}
 				
 				free(daemonName);
 				return -11;
 			}
 
+			printf("ARRIVE2\n");
 
-			struct MIP_Frame * recvdMIP = malloc(sizeof(recvframe->contents));
-			recvdMIP = (struct MIP_Frame*) recvframe->contents;
+
+			
+			struct send *recvd = malloc(sizeof(struct send));
+			recvd = (struct send*) recvframe->contents;
+
+			struct MIP_Frame * recvdMIP = malloc(sizeof(struct MIP_Frame));
+			recvdMIP = recvd->frame;
 			
 			#ifdef DEBUG
 				//Print information on message recieved
 				//Sender+Reciever MIP-adress
-				
-				struct MIP_Frame* MIPu = malloc(sizeof(recvframe->contents));
-				MIPu = (struct MIP_Frame*) recvframe->contents;
-
+						
 				//Print stuff for DEBUG mode!
-				printf("\n\nDDDDDEBUG\n");
 				printf("Destination address: ");
 				printMAC(recvframe->dst_addr);
 				printf("Source address:      ");
 				printMAC(recvframe->src_addr);
-				printf("Source MIPaddress: %d\n", (int) recvdMIP->srcMIP[0]);
-				printf("Destination MIPaddress: %d\n", (int) recvdMIP->dstMIP[0]);
 				printf("Protocol type:       %04x\n", ntohs(*((uint16_t*)recvframe->eth_proto)));
-				if(MIPu->message[0] != '\0')	printf("Contents: %s\n", MIPu->message);
+				if(recvd->message != NULL)	printf("Contents: %s\n", recvd->message);
 				else	printf("No content: ARP\n");
-				//free(MIPu);
-				printf("END\n\n");
 			#endif
 			
-			/* Test TODO rm?
 			printf("Sizeof : %d\n", (int)sizeof(recvframe));
+			printf("Sizeof send: %d\n", (int)sizeof(recvd));
 			printf("Sizeof frame: %d\n", (int)sizeof(recvdMIP));
+			//ERROR HER HOS RECV! Wireshark for å sjekke sentFrame, malloc-check for å sjekke recv-daemon! TODO
+			printf("Src-addr: %d\n", (int) recvdMIP->srcMIP[0]);
 			printf("Packet-type: %d\n", (int) recvdMIP->TRA_TTL_Payload[0]);
-			*/
+			
+			//Create ethernet-frame & send-struct!
+			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);
+			struct ether_frame *frame = malloc(msgsize);
+			
+			printf("ARRIVE3\n");
 
-			//Create ethernet-frame !
-			size_t msgsize; //= sizeof(struct ether_frame) + sizeof(struct MIP_Frame) + strlen(recvdMIP->message);
-			struct ether_frame *frame; //= malloc(msgsize);
-
-			err=findCase(recvdMIP);
+			err=findCase(recvd, recvdMIP);
 
 
 			if (err==-1){
@@ -492,33 +532,47 @@ int main(int argc, char* argv[]){
 
 				if(frmSet){
 					free(tmpFrame);
+					free(tmpBuf);
 				}
 				free(daemonName);
+				free(frame);
 				free(recvdMIP);
 				free(recvframe);
+				free(recvd);
 				return -8;
 				//Recieved Arp-response.
 			} else if(err == 2){
 				//Save in Arp-cache
-
-				struct MIP_Frame* MIP = malloc(sizeof(recvframe->contents));
-				MIP = (struct MIP_Frame*) recvframe->contents;
-
-				saveArp(MIP->srcMIP, recvframe->src_addr);
+				saveArp(recvd->frame->srcMIP[1], recvframe->src_addr);
 				//Finalize saved mip-frame!
-				finalTransp(MIP->srcMIP, tmpFrame);
+				finalTransp(recvd->frame->srcMIP, tmpFrame);
+				//Add send-struct
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
+				if(!createSend(tmpFrame, tmpBuf, sendInfo)){
+					//ERROR!
+					perror("Error during framecreation (SEND)");
+					close(raw);
+					close(ipc);
+					clearArp();
 
-				//TODO WUT - on thread1's stack
-				//free(MIP);
-
-				msgsize= sizeof(struct ether_frame) + sizeof(struct MIP_Frame) + len;
-				frame=malloc(msgsize);
-
+					if(frmSet){
+						free(tmpFrame);
+						free(tmpBuf);
+					}
+					free(recvd);
+					free(recvframe);
+					free(daemonName);
+					free(frame);
+					free(recvdMIP);
+					free(sendInfo->frame);
+					free(sendInfo);
+					return -13;
+				}
 				//Add everything to ethernet-frame & send!
-				createEtherFrame(tmpFrame, len, myAdr, recvframe->src_addr, frame);
+				createEtherFrame(sendInfo, myAdr, recvframe->src_addr, frame);
 
 				//SEND
-				if(!sendRaw(raw, msgsize, frame)){
+				if(!sendRaw(raw, frame)){
 					perror("Error during raw sending");
 					close(raw);
 					close(ipc);
@@ -526,52 +580,65 @@ int main(int argc, char* argv[]){
 
 					if(frmSet){
 						free(tmpFrame);
+						free(tmpBuf);
 					}
 					free(recvframe);
 					free(daemonName);
 					free(frame);
+					free(recvd);
 					free(recvdMIP);
+					free(sendInfo->frame);
+					free(sendInfo);
 					return -11;
 				}
 
 				free(frame);
 				free(tmpFrame);
+				free(tmpBuf);
 				frmSet=0;
-				//TODO WUT - on thread1's stack
-				//free(recvdMIP);
-				//free(recvframe);
+				free(recvdMIP);
+				free(recvd);
+				free(recvframe);
+				free(sendInfo->frame);
+				free(sendInfo);
 
 			//Revieced Arp-request
 			} else if(err == 3){
 				uint8_t mac[6];
-
-				struct MIP_Frame* MIP_IP = malloc(sizeof(recvframe->contents));
-				MIP_IP = (struct MIP_Frame*) recvframe->contents;
-
 				//Is it in my Arp-cache? If not, add!
-				if(!findArp(MIP_IP->srcMIP, mac)){
+				if(!findArp((char)recvd->frame->srcMIP[1], mac)){
 					//Save in Arp-cache
-					saveArp(MIP_IP->srcMIP, recvframe->src_addr);
+					saveArp((char)recvd->frame->srcMIP[1], recvframe->src_addr);
 				}
-
 				//Send Arp-response!
-				struct MIP_Frame* frm1 = malloc(sizeof(struct MIP_Frame));
-				char tmp[1];
-				tmp[0] = (int) recvdMIP->srcMIP[0];
+				struct MIP_Frame* frm = malloc(sizeof(struct MIP_Frame));
 				//Create Arp-response-frame.
-				setARPReturn(daemonName, tmp, frm1);
-				
-				//TODO WUT - on thread1's stack
-				//free(MIP_IP);
+				setARPReturn(daemonName, recvd->frame->srcMIP, frm);
+				//Create send-struct
+				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
+				if(!createSend(frm, NULL, sendInfo)){
+					//ERROR!
+					perror("Error during framecreation(SEND)");
+					close(raw);
+					close(ipc);
+					clearArp();
 
-				msgsize= sizeof(struct ether_frame) + sizeof(struct MIP_Frame);
-				frame=malloc(msgsize);
-
+					if(frmSet){
+						free(tmpFrame);
+						free(tmpBuf);
+					}
+					free(daemonName);
+					free(sendInfo->frame);
+					free(sendInfo);
+					free(frm);
+					free(frame);
+					return -13;
+				}
 				//Create ethernet-package
-				createEtherFrame(frm1, 0, myAdr, recvframe->src_addr, frame);
+				createEtherFrame(sendInfo, myAdr, recvframe->src_addr, frame);
 
 				//SEND!
-				if(!sendRaw(raw, msgsize, frame)){
+				if(!sendRaw(raw, frame)){
 					perror("Error during raw sending");
 					close(raw);
 					close(ipc);
@@ -579,24 +646,25 @@ int main(int argc, char* argv[]){
 
 					if(frmSet){
 						free(tmpFrame);
+						free(tmpBuf);
 					}
 					free(daemonName);
-					free(frm1);
+					free(sendInfo->frame);
+					free(sendInfo);
+					free(frm);
 					free(frame);
 					return -11;
 				}
 
-				free(frm1);
 				free(frame);
+				free(frm);
+				free(sendInfo->frame);
+				free(sendInfo);
 
 			//Recived transport
 			}else{
 				//Send IPC
-
-				struct MIP_Frame * MIP_IP = malloc(sizeof(recvframe->contents));
-				MIP_IP = (struct MIP_Frame*) recvframe->contents;
-
-				if(!sendIPC(accpt, MIP_IP->message)){
+				if(!sendIPC(ipc, recvd->message)){
 					perror("Error during IPC");
 					close(raw);
 					close(ipc);
@@ -604,18 +672,14 @@ int main(int argc, char* argv[]){
 
 					if(frmSet){
 						free(tmpFrame);
+						free(tmpBuf);
 					}
 					free(daemonName);
-					//TODO WUT - on thread1's stack
-					//free(MIP_IP);
+					free(frame);
 					return -9;
 				}
-				//TODO WUT - on thread1's stack
-				//free(MIP_IP);
-			
-				ret[0]=MIP_IP->srcMIP[0];
-				retSet=1;
 			}
+			
 
 			#ifdef DEBUG
 			printArp();
@@ -624,6 +688,8 @@ int main(int argc, char* argv[]){
 		
 		if(FD_ISSET(ipc, &fds)){
 			//Connected with ipc
+
+			printf("O HAI :)\n");
 
 			accpt = accept(ipc, NULL, NULL);
 			if(accpt == -1){

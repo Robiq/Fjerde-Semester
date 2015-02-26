@@ -80,11 +80,14 @@ int main(int argc, char* argv[])
 	ssize_t recieved=0;
 	double diff=0;
 
-	printf("SentMSG\n");
-
 	while(diff < 1.0 && recieved == 0){
 
 		char buf[5];
+		
+
+		if(diff>1.0)	break;
+
+		recieved = read(sock, buf, 5);
 		
 		if(recieved < 0){
 			perror("Error during read from socket");
@@ -94,12 +97,13 @@ int main(int argc, char* argv[])
 		} else if(recieved != 0){
 			buf[recieved]=0;
 			printf("Message recieved: %s\n", buf);
+			time_t now;
+			now = time(NULL);
+
+			diff = difftime((now), (start));
+			break;
 		}
 
-		if(diff>1.0)	break;
-
-		recieved = read(sock, buf, 5);
-		
 		time_t now;
 		now = time(NULL);
 
