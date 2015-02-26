@@ -287,11 +287,12 @@ int main(int argc, char* argv[]){
 			recIPC(accpt, buf);
 
 			//Håndter __ som skiller msg fra address
-			char msg [maxSize];
+			char msg [maxSize]={0};
 			char dst[1];
 			decodeBuf(buf, msg, dst);
 			
-			size_t msgsize = sizeof(struct ether_frame)+ sizeof(struct send);
+			size_t msgsize = (sizeof(struct ether_frame)+ sizeof(struct send) + sizeof(msg) + sizeof(struct MIP_Frame));
+			printf("Msgsize: %d\n", (int) msgsize);
 			struct ether_frame *frame = malloc(msgsize);
 			struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame));
 			
@@ -316,7 +317,9 @@ int main(int argc, char* argv[]){
 					return -12;
 				}
 
-				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
+				struct send *sendInfo = malloc(sizeof(struct send) + sndSize + sizeof(struct MIP_Frame));
+				
+				printf("Sizeof sendInfo %d\n", (int) (sizeof(struct send) + sndSize + sizeof(struct MIP_Frame)));
 
 				if(!createSend(mipFrame, msg, sendInfo)){
 					//ERROR!
@@ -382,8 +385,12 @@ int main(int argc, char* argv[]){
 				msg[0]='\0';
 
 				struct send *sendInfo = malloc(sizeof(struct send) + sizeof(struct MIP_Frame));
+				printf("Sizeof sendInfo %d\n", (int) (sizeof(struct send) + sizeof(struct MIP_Frame)));
 
-				if(!createSend(mipFrame, NULL, sendInfo)){
+				char *testest=strdup("Four");
+				
+
+				if(!createSend(mipFrame, testest, sendInfo)){
 					//ERROR!
 					perror("Error during framecreation(SEND)");
 					close(raw);
@@ -401,14 +408,17 @@ int main(int argc, char* argv[]){
 
 				printf("SendInfo srcMIP: %d\n", (int) sendInfo->frame->srcMIP[0]);
 				printf("sendInfo TRA: %d\n", (int) sendInfo->frame->TRA_TTL_Payload[0]);
-				printf("sendInfo size: %d\n", (int) sizeof(sendInfo->frame));
+				printf("sendInfo MIP size: %d\n", (int) sizeof(sendInfo->frame));
+				printf("sendInfo size: %d\n", (int) sizeof(sendInfo));
+				printf("Myaddr size: %d Dst_addr size: %d\n", (int) sizeof(myAdr), (int) sizeof(dst_addr) );
 
 				createEtherFrame(sendInfo, myAdr, dst_addr, frame);
 
 				struct send *tst= (struct send*) frame->contents;
 				printf("Ether srcMIP: %d\n", (int) tst->frame->srcMIP[0]);
 				printf("Ether TRA: %d\n", (int) tst->frame->TRA_TTL_Payload[0]);
-				printf("Ether size: %d\n", (int) sizeof(tst->frame));
+				printf("Ether MIP size: %d\n", (int) sizeof(tst->frame));
+				printf("Ether size: %d\n", (int) sizeof(frame));
 				
 				//SEND!
 				if(!sendRaw(raw, frame)){
@@ -452,15 +462,13 @@ int main(int argc, char* argv[]){
 
 		//Checks if the request-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
-
-			char recvbuf[maxSize]={0};
 			
-			struct ether_frame *recvframe = (struct ether_frame*)recvbuf;
+			struct ether_frame *recvframe = malloc(sizeof(struct ether_frame));
 
 			printf("ARRIVE\n");
 
 			//Connected with a raw socket
-			err=recRaw(raw, recvbuf);
+			err=recRaw(raw, recvframe);
 			if(!err){
 				printf("Error while reciving from raw!\n");
 				close(raw);
@@ -478,22 +486,34 @@ int main(int argc, char* argv[]){
 
 			printf("ARRIVE2\n");
 
-			int debug=0;
 
-			#ifdef DEBUG
-			//Print information on message recieved
-			//Sender+Reciever MIP-adress
-			debug=1;
-			#endif
 			
-			struct send *recvd = (struct send*) recvframe->contents;
+			struct send *recvd = malloc(sizeof(struct send));
+			recvd = (struct send*) recvframe->contents;
+
+			struct MIP_Frame * recvdMIP = malloc(sizeof(struct MIP_Frame));
+			recvdMIP = recvd->frame;
+			
+			#ifdef DEBUG
+				//Print information on message recieved
+				//Sender+Reciever MIP-adress
+						
+				//Print stuff for DEBUG mode!
+				printf("Destination address: ");
+				printMAC(recvframe->dst_addr);
+				printf("Source address:      ");
+				printMAC(recvframe->src_addr);
+				printf("Protocol type:       %04x\n", ntohs(*((uint16_t*)recvframe->eth_proto)));
+				if(recvd->message != NULL)	printf("Contents: %s\n", recvd->message);
+				else	printf("No content: ARP\n");
+			#endif
 			
 			printf("Sizeof : %d\n", (int)sizeof(recvframe));
 			printf("Sizeof send: %d\n", (int)sizeof(recvd));
-			printf("Sizeof frame: %d\n", (int)sizeof(recvd->frame));
+			printf("Sizeof frame: %d\n", (int)sizeof(recvdMIP));
 			//ERROR HER HOS RECV! Wireshark for å sjekke sentFrame, malloc-check for å sjekke recv-daemon! TODO
-			printf("Src-addr: %d\n", (int) recvd->frame->srcMIP[0]);
-			printf("Packet-type: %d\n", (int) recvd->frame->TRA_TTL_Payload[0]);
+			printf("Src-addr: %d\n", (int) recvdMIP->srcMIP[0]);
+			printf("Packet-type: %d\n", (int) recvdMIP->TRA_TTL_Payload[0]);
 			
 			//Create ethernet-frame & send-struct!
 			size_t msgsize = sizeof(struct ether_frame) + sizeof(struct send);
@@ -501,7 +521,7 @@ int main(int argc, char* argv[]){
 			
 			printf("ARRIVE3\n");
 
-			err=findCase(recvframe, debug);
+			err=findCase(recvd, recvdMIP);
 
 
 			if (err==-1){
@@ -516,7 +536,9 @@ int main(int argc, char* argv[]){
 				}
 				free(daemonName);
 				free(frame);
+				free(recvdMIP);
 				free(recvframe);
+				free(recvd);
 				return -8;
 				//Recieved Arp-response.
 			} else if(err == 2){
@@ -537,9 +559,11 @@ int main(int argc, char* argv[]){
 						free(tmpFrame);
 						free(tmpBuf);
 					}
+					free(recvd);
 					free(recvframe);
 					free(daemonName);
 					free(frame);
+					free(recvdMIP);
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -13;
@@ -561,6 +585,8 @@ int main(int argc, char* argv[]){
 					free(recvframe);
 					free(daemonName);
 					free(frame);
+					free(recvd);
+					free(recvdMIP);
 					free(sendInfo->frame);
 					free(sendInfo);
 					return -11;
@@ -570,6 +596,8 @@ int main(int argc, char* argv[]){
 				free(tmpFrame);
 				free(tmpBuf);
 				frmSet=0;
+				free(recvdMIP);
+				free(recvd);
 				free(recvframe);
 				free(sendInfo->frame);
 				free(sendInfo);
@@ -656,8 +684,6 @@ int main(int argc, char* argv[]){
 			#ifdef DEBUG
 			printArp();
 			#endif
-
-
 		}
 		
 		if(FD_ISSET(ipc, &fds)){

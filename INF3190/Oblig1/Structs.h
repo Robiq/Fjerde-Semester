@@ -24,5 +24,5 @@ struct MIP_Frame
 struct send
 {
 	struct MIP_Frame* frame;
-	char message [maxSize-4];
+	char *message;
 } __attribute__((packed));

@@ -13,6 +13,8 @@ int createSend(struct MIP_Frame* frame, char* msg, struct send *snd)
 	if(msg!=NULL)	tst = sizeof(frame) + strlen(msg);
 	else	tst = sizeof(frame);
 
+	printf("Tst: %d\n", (int) tst);
+
 	if(tst > maxSize)	return 0;
 
 	snd->frame = malloc(sizeof(struct MIP_Frame));
@@ -25,8 +27,13 @@ int createSend(struct MIP_Frame* frame, char* msg, struct send *snd)
 	*/
 
 	memcpy(snd->frame, frame, sizeof(struct MIP_Frame));
-	if(msg != NULL)	memcpy(snd->message, msg, strlen(msg));
-	else	memset(snd->message, 0, sizeof(maxSize));
+	if(msg != NULL){
+		//MÅ FREE's! TODO
+		snd->message=malloc(sizeof(msg));
+		memcpy(snd->message, msg, (strlen(msg)+1));
+		printf("Saved: %s\n", snd->message);
+	}
+
 
 	return 1;
 }
@@ -36,17 +43,27 @@ int createEtherFrame(struct send *snd, uint8_t* iface_hwaddr, uint8_t* dst, stru
 
 	assert(frame);
 
+	printf("Size 1:%d\n", (int) sizeof(frame));
+
 	//Ethernet broadcast addr.
 	memcpy(frame->dst_addr, dst, 6);
+
+	printf("Size 2:%d\n", (int) sizeof(frame));
 
 	//Ethernet source addr.
 	memcpy(frame->src_addr, iface_hwaddr, 6);
 
+	printf("Size 3:%d\n", (int) sizeof(frame));
+
 	//Ethernet protocol field
 	frame->eth_proto[0] = frame->eth_proto[1] = 0xFF;
 
+	printf("Size 4:%d\n", (int) sizeof(frame));
+
 	//Fill in the message.
-	memcpy(frame->contents, snd, sizeof(snd));
+	memcpy(frame->contents, snd, sizeof(( sizeof(struct send) + sizeof(snd->message) + sizeof(snd->frame))));
+
+	printf("Size 5:%d\n", (int) sizeof(frame));
 
 	return 1;
 }

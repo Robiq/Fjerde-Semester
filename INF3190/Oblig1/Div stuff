@@ -27,6 +27,18 @@ SOCK_RAW = holder l2 rammen/header intakt!
 
 sockaddr_ll	ll=linkedlayer
 
+sizeof(struct ether_frame) == tom ether_frame! (14 byte, no data)
+
+sizeof(snd) == malformed packet! Feil dst-adrr ++++ (8 byte, no data)
+
+maxSize == sender 12 byte, men de er malformed! (se bort fra dst_addr), alle 12 er data!
+
+Antar at MIPHEader og ethernetframe stemmer, men struct send fucker opp noe? sier adressen er på 22 byte (14+8 = 22, ethernet = 14, MIP = 8). Feil i send?
+
+8 bytes:
+ffffffffffff3628
+
+
 
 tcpdump for overvåking av trafikk:
 sudo tcpdump -e -i lo -p -nn ether proto 0xFFFF

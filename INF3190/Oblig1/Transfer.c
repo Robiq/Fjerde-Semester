@@ -27,63 +27,41 @@ void printMAC(uint8_t* mac)
 	printf("%02x\n", mac[5]);
 }
 
-int arpRet(struct send* recv)
+int arpRet(struct MIP_Frame* recv)
 {
-	struct MIP_Frame* frm = recv->frame;
 	int x;
-	x = (int) frm->TRA_TTL_Payload[0];
+	x = (int) recv->TRA_TTL_Payload[0];
 	if(x == ARPret)	return 1;
 	
 	return 0;
 }
 //Check if frame is
-int arp(struct send* recv)
+int arp(struct MIP_Frame* recv)
 {
-	struct MIP_Frame* frm = recv->frame;
 	int x;
-	x = (int) frm->TRA_TTL_Payload[0];
+	x = (int) recv->TRA_TTL_Payload[0];
 	if(x == ARP)	return 1;
 	return 0;
 }
 
-int caseFind(struct ether_frame* frame)
-{	
+//Tolk MIP-header og velg rett handlingsmønster!
+int findCase(struct send* frame, struct MIP_Frame *frm)
+{
 	//Arp-answer
-	if(arpRet((struct send*)frame->contents)){
+	if(arpRet(frm)){
 		//Save in ARP-list, send saved packet, in daemon
 		return 2;
 	//Arp-package
-	} else if(arp((struct send*)frame->contents)){
+	} else if(arp(frm)){
 		//Return ARP-response-packet & save sender in ARP-cache, in daemon
 		return 3;
 	//Transport
 	}else{
-		struct send *recvd= (struct send*) frame->contents;
 		//Send IPC-packet, in daemon
-		if(recvd->message != NULL)	return 1;
+		if(frame->message != NULL)	return 1;
 		//Error! Something wrong with message
 		return -1;
 	}
-}
-
-//Tolk MIP-header og velg rett handlingsmønster!
-int findCase(struct ether_frame* frame, int debug)
-{
-	int a = caseFind(frame);
-
-	if(debug && a!=-1){
-		//Print stuff for DEBUG mode!
-		printf("Destination address: ");
-		printMAC(frame->dst_addr);
-		printf("Source address:      ");
-		printMAC(frame->src_addr);
-		printf("Protocol type:       %04x\n", ntohs(*((uint16_t*)frame->eth_proto)));
-		struct send *recvd= (struct send*)frame->contents;
-		if(recvd->message != NULL)	printf("Contents: %s\n", recvd->message);
-		else	printf("No content: ARP\n");
-	}
-
-	return a;
 }
 
 //Send raw
@@ -94,9 +72,11 @@ int sendRaw(int fd, struct ether_frame *snd)
 	printf("Dst: ");
 	printMAC(snd->dst_addr);
 	printf("Eth_Proto: %04x\n", ntohs(*((uint16_t*)snd->eth_proto)));
+	printf("Size frame: %d\n", (int) sizeof(snd));
+	printf("Size empty frame: %d\n", (int) sizeof(struct ether_frame));
 
 
-	ssize_t err=send(fd, snd, sizeof(struct ether_frame), 0);
+	ssize_t err=send(fd, snd, maxSize , 0);
 
 	printf("Sent: %d\n", (int)err);
 
@@ -116,7 +96,7 @@ int sendIPC(int fd, char* buf)
 }
 
 //Recieve raw
-int recRaw(int fd, char *recvd)
+int recRaw(int fd, struct ether_frame* recvd)
 {
 	ssize_t err=recv(fd, recvd, sizeof(maxSize), 0);
 
