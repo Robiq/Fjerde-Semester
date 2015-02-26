@@ -61,31 +61,49 @@ int main(int argc, char* argv[])
 	strncat(complMsg, mipRecv, strlen(mipRecv)+1);
 	
 	size_t s = write(sock, complMsg, strlen(complMsg));
-	
+		
 	free(complMsg);
 	free(mipRecv);
 	free(mipAdr);
 	free(message);
-
 	
-	if(s==-1){
-		perror("Error during sending");
+
+	struct timeval xit;
+	fd_set acc;
+
+	FD_ZERO(&acc);
+	FD_SET(sock, &acc);
+
+	xit.tv_sec=1;
+	xit.tv_usec=0;
+
+	int err=select(sock+1, &acc, NULL, NULL, &xit);
+
+	if(err==-1){
+		perror("select");
 		close(sock);
 		free(daemonName);
-		return -7;
-	}
-	time_t start;
-	start = time (NULL);
+		return -4;
+	}else if(err==0){
+		printf("Timeout!\n");
+	}else{
 
-	ssize_t recieved=0;
-	double diff=0;
-
-	while(diff < 1.0 && recieved == 0){
+		
+		if(s==-1){
+			perror("Error during sending");
+			close(sock);
+			free(daemonName);
+			return -7;
+		} else if(s==0){
+			printf("Socket closed!\n");
+			close(sock);
+			free(daemonName);
+			return 0;
+		}
+		
+		ssize_t recieved=0;
 
 		char buf[5];
-		
-
-		if(diff>1.0)	break;
 
 		recieved = read(sock, buf, 5);
 		
@@ -94,26 +112,15 @@ int main(int argc, char* argv[])
 			close(sock);
 			free(daemonName);
 			return -8;
-		} else if(recieved != 0){
+		} else if(recieved == 0){
+			printf("Daemon closed!\n");
+			free(daemonName);
+			close(sock);
+			return 0;
+		}else{
 			buf[recieved]=0;
 			printf("Message recieved: %s\n", buf);
-			time_t now;
-			now = time(NULL);
-
-			diff = difftime((now), (start));
-			break;
 		}
-
-		time_t now;
-		now = time(NULL);
-
-		diff = difftime((now), (start));
-
-	}
-	if(diff < 1.0){
-		printf("Time between sending ping and recieving response was: %f seconds\n", diff);
-	} else{
-		printf("Timeout!\n");
 	}
 	free(daemonName);
 	close(sock);

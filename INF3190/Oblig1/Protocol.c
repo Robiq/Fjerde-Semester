@@ -111,7 +111,7 @@ int setTempTransp(char *src, size_t payload, char msg[], struct MIP_Frame* mipFr
 
 int finalTransp(char* dst, struct MIP_Frame* mipFrame)
 {
-	memcpy(mipFrame->dstMIP, dst, strlen(dst));
+	memcpy(mipFrame->dstMIP, dst, sizeof(char));
 
 	return 1;
 }
@@ -119,8 +119,8 @@ int finalTransp(char* dst, struct MIP_Frame* mipFrame)
 int setRouting(char* src, char* dst, size_t payload, char msg[], struct MIP_Frame* mipFrame){
 	//Routing 010 1111 0000 0000 0 = 24064
 	
-	memcpy(mipFrame->srcMIP, src, strlen(src));
-	memcpy(mipFrame->dstMIP, dst, strlen(dst));
+	memcpy(mipFrame->srcMIP, src, sizeof(char));
+	memcpy(mipFrame->dstMIP, dst, sizeof(char));
 	
 	int calc = Routing + (payload/4);
 	

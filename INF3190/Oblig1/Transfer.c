@@ -49,17 +49,23 @@ int findCase(struct MIP_Frame *frm)
 {
 	//Arp-answer
 	if(arpRet(frm)){
-		printf("ARPRET\n");
+		#ifdef DEBUG
+		printf("Type: ARP-Return\n");
+		#endif
 		//Save in ARP-list, send saved packet, in daemon
 		return 2;
 	//Arp-package
 	} else if(arp(frm)){
-		printf("ARP\n");
+		#ifdef DEBUG
+		printf("Type: ARP\n");
+		#endif
 		//Return ARP-response-packet & save sender in ARP-cache, in daemon
 		return 3;
 	//Transport
 	}else{
-		printf("OTHER\n");
+		#ifdef DEBUG
+		printf("Type: Transport\n");
+		#endif
 		//Send IPC-packet, in daemon
 		if(frm->message != NULL)	return 1;
 		//Error! Something wrong with message
@@ -91,6 +97,10 @@ int sendIPC(int fd, char* buf)
 {
 	ssize_t err = write(fd, buf, sizeof(buf));
 
+	#ifdef DEBUG
+	printf("Sent over IPC: %d\n", (int) err);
+	#endif
+
 	if(err==-1 || err==0)	return 0;
 
 	buf[err]='\0';
@@ -115,7 +125,7 @@ int recIPC(int fd, char* buf)
 {
 	
 	ssize_t err = read(fd, buf, sizeof(buf));
-	if(err==-1)	return 0;
+	if(err==-1 || err==0)	return 0;
 
 	if(buf[0] == '\0')	return 0;
 

@@ -61,6 +61,7 @@ int main(int argc, char* argv[])
 		char buf[maxSize];
 		ssize_t recieved = read(sock, buf, maxSize);
 		if(recieved > 0){
+			usleep(500000);
 			buf[recieved] = 0;
 			printf("Recieved '%s' from client!\n", buf);
 			write(sock, "Pong", 4);
