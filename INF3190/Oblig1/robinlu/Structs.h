@@ -1,11 +1,9 @@
 #include <inttypes.h>
 
-//Static variables for different values for TRA_TTL_Payload, in MIP_Frame.
 #define ARP 15872
 #define ARPret 7680
 #define Routing 24064
 #define Transport 40448
-//Max MIP_Frame Size
 #define maxSize 1500
 
 struct ether_frame

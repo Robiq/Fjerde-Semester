@@ -1,3 +1,7 @@
+//socket(AF_PACKET,RAW_SOCKET,...) means L2 socket , Data-link Layer Protocol= Ethernet
+
+//https://austinmarton.wordpress.com/2011/09/14/sending-raw-ethernet-packets-from-a-specific-interface-in-c-on-linux/
+
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -7,39 +11,39 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/un.h>
+
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <linux/if_packet.h>
 #include <net/ethernet.h>
+
 #include <net/if.h>
+
 #include <sys/ioctl.h>
 #include <bits/ioctls.h>
 
 //To get Protocol.c, 
 #include "Protocol.c"
 
-//Defines the maximum connections to the select-server! Can be changed for testing purposes!
+#define ETH_P_MIP 0xFF
 #define maxCon 1000
 
-//Arp-register struct. Contains the MIP-address and the MAC-address of a daemon, and a pointer to the next ARP-entry.
+
 struct Arp_list
-{	
+{
 	char MIP[1];
 	uint8_t MAC[6];
 	struct Arp_list *next;
 };
 
-//Global variables, raw&ipc are sockets, retSet handles if ret is given a value, and the same for frmSet and tmpFrame.  
 int raw, ipc, retSet=0, frmSet=0;
-char ret[1];
-struct MIP_Frame *tmpFrame;
 char *daemonName;
-//Len saves the lengt of the message, first is the pointer to the base node of the ARP-registry and myAdr is the MAC-address of this daemon.
+char ret[1];
 size_t len=0;
 struct Arp_list* first;
 uint8_t myAdr[6];
+struct MIP_Frame *tmpFrame;
 
-//Clears the ARP-registry
 void clearArp()
 {
 	struct Arp_list* this=first;
@@ -52,7 +56,7 @@ void clearArp()
 	}
 	free(this);
 }
-//Closes the program and frees all allocated variables.
+
 void closeProg(){
 	close(ipc);
 	close(raw);
@@ -66,33 +70,31 @@ void closeProg(){
 	printf("\nSystem closing!\n");
 	exit(0);
 }
-//Saves the MAC-address of this daemon in the variable hwaddr, which is the third parameter. Returns 0 if failed and 1 if success.
+
 static int get_if_hwaddr(int sock, const char* devname, uint8_t hwaddr[6])
 {
 	struct ifreq ifr;
-	//clears the struct
 	memset(&ifr, 0, sizeof(ifr));
-	//Makes sure the struct has room for the content and copies content
+	
 	assert(strlen(devname) < sizeof(ifr.ifr_name));
 	strcpy(ifr.ifr_name, devname);
-	//Grabs address
+
 	if(ioctl(sock, SIOCGIFHWADDR, &ifr) < 0)
 	{
 		perror("ioctl");
 		return -4;
 	}
-	//Copies all the results and saves them.
+
 	memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, 6*sizeof(uint8_t));
 
 	return 0;
 }
-//Finds the corresponding MAC-address to the MIP-address. The first parameter is the MIP-address, and the second is where we store the MAC-address found.
-//Returns 1 on success, returns 0 on failure.
+
+//Finds mac-addr
 int findArp(char dst[], uint8_t* macAd)
 {	
 	if(first->next!=NULL){
 		struct Arp_list* this=first->next;
-		//Loops through the ARP-registry for the correct MAC-address
 		do{
 			if(this->MIP[0] == (char)dst[0]){
 				memcpy(macAd, this->MAC, 6);
@@ -103,13 +105,12 @@ int findArp(char dst[], uint8_t* macAd)
 	}
 	return 0;
 }
-//Saves an APR-result in the ARP-registry. Parameters are the MIP-address and the MAC-address.
+//Saves an APR-resoult
 int saveArp(char dst[], uint8_t* mac)
 {
 	struct Arp_list* this=first;
-	//Finds the last entry
 	while(this->next != NULL)	this=this->next;
-	//Creates a new entry and adds the information. Then adds the entry to the end of the list.
+
 	struct Arp_list* add=malloc(sizeof(struct Arp_list));
 	add->MIP[0]= (char) dst[0];
 	memcpy(add->MAC, mac, 6);
@@ -118,7 +119,7 @@ int saveArp(char dst[], uint8_t* mac)
 
 	return 1;
 }
-//Prints the whole Arp-table.
+//Print Arp-table
 void printArp()
 {
 	printf("\nArp_list:\n");
@@ -137,24 +138,20 @@ void printArp()
 		printf("---------------------\n\n");
 	}
 }
-//Decodes the input from the client. The first parameter is the raw input and the other parameters are where the correct information is stored.
+
 void decodeBuf(const char* buf, char* msg, char* dst)
 {	
 	int i;
-	//Loops through input string
 	for(i=0;i<strlen(buf);i++){
-		//If it finds "__", then it saves the char after "__" as the destination MIP-address and breaks the for-loop.
 		if(buf[i] == '_' && buf[i+1] == '_'){
 			dst[0]=buf[i+2];
 			break;
 		}
-		//Saves the message taken from the buffer.
 		msg[i]=buf[i];
 	}
-	//Null-terminates the string.
 	msg[i]='\0';
 }
-//Main TODO - Continue here! Make design-document and finish comments
+
 int main(int argc, char* argv[]){
 
 	if(argc != 3){
@@ -319,7 +316,7 @@ int main(int argc, char* argv[]){
 				size_t sndSize = strlen(msg);
 
 				size_t msgsize = (sizeof(struct ether_frame) + sndSize + sizeof(struct MIP_Frame));
-
+				//Test TODO RM printf("Msgsize: %d\n", (int) msgsize);
 				struct ether_frame *frame = malloc(msgsize);
 				struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame) + sndSize);
 				
@@ -330,7 +327,7 @@ int main(int argc, char* argv[]){
 					//Create frames
 					if(!setTransport(daemonName, dst, sndSize, msg, mipFrame)){
 						//ERROR!
-						printf("Error during framecreation(Transport)\n");
+						perror("Error during framecreation(Transport)");
 						close(raw);
 						close(ipc);
 						clearArp();
@@ -376,10 +373,28 @@ int main(int argc, char* argv[]){
 					//Create arp-frame
 					err = setARP(daemonName, mipFrame);
 
+					/* Test TODO rm
+					printf("Sizeof: %d\n", (int)sizeof(mipFrame));
+					printf("MIPsrc: %d\n", (int)mipFrame->srcMIP[0]);
+					printf("TRA: %d\n", (int) mipFrame->TRA_TTL_Payload[0]);
+					*/
+
 					//Create ether-frame
 					memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
 
 					createEtherFrame(mipFrame, 0, myAdr, dst_addr, frame);
+
+					/*//TESTEST TODO REMOVE - Gives error, do not CARE!
+					struct MIP_Frame *tst = malloc(sizeof(struct MIP_Frame));
+					tst=(struct MIP_Frame*)frame->contents;
+
+					printf("Ether srcMIP: %d\n", (int) tst->srcMIP[0]);
+					printf("Ether TRA: %d\n", (int) tst->TRA_TTL_Payload[0]);
+					printf("Ether MIP size: %d\n", (int) sizeof(tst));
+					printf("Ether size: %d\n", (int) sizeof(frame));
+					
+					free(tst);
+					*/
 
 					//SEND!
 					if(!sendRaw(raw,(sizeof(struct ether_frame)+sizeof(struct MIP_Frame)), frame)){
@@ -400,7 +415,7 @@ int main(int argc, char* argv[]){
 
 					if(!setTempTransp(daemonName, sndSize, msg, tmpFrame)){
 						//ERROR!
-						printf("Error during framecreation(TempTrans)!\n");
+						printf("Error during framecreation(TempTrans), line 390!\n");
 						close(raw);
 						close(ipc);
 						unlink(daemonName);
@@ -464,6 +479,12 @@ int main(int argc, char* argv[]){
 				if(MIPu->message[0] != '\0')	printf("Contents: %s\n", MIPu->message);
 				else	printf("No content: ARP\n");	
 			#endif
+			
+			/* Test TODO rm?
+			printf("Sizeof : %d\n", (int)sizeof(recvframe));
+			printf("Sizeof frame: %d\n", (int)sizeof(recvdMIP));
+			printf("Packet-type: %d\n", (int) recvdMIP->TRA_TTL_Payload[0]);
+			*/
 
 			//Create ethernet-frame !
 			size_t msgsize; //= sizeof(struct ether_frame) + sizeof(struct MIP_Frame) + strlen(recvdMIP->message);
@@ -497,6 +518,9 @@ int main(int argc, char* argv[]){
 				//Finalize saved mip-frame!
 				finalTransp(MIP->srcMIP, tmpFrame);
 
+				//TODO WUT - on thread1's stack
+				//free(MIP);
+
 				msgsize= sizeof(struct ether_frame) + sizeof(struct MIP_Frame) + len;
 				frame=malloc(msgsize);
 
@@ -523,6 +547,9 @@ int main(int argc, char* argv[]){
 				free(frame);
 				free(tmpFrame);
 				frmSet=0;
+				//TODO WUT - on thread1's stack
+				//free(recvdMIP);
+				//free(recvframe);
 
 			//Revieced Arp-request
 			} else if(err == 3){
@@ -544,6 +571,8 @@ int main(int argc, char* argv[]){
 				//Create Arp-response-frame.
 				setARPReturn(daemonName, tmp, frm1);
 				
+				//TODO WUT - on thread1's stack
+				//free(MIP_IP);
 
 				msgsize= sizeof(struct ether_frame) + sizeof(struct MIP_Frame);
 				frame=malloc(msgsize);
@@ -586,10 +615,13 @@ int main(int argc, char* argv[]){
 					if(frmSet){
 						free(tmpFrame);
 					}
-
 					free(daemonName);
+					//TODO WUT - on thread1's stack
+					//free(MIP_IP);
 					return -9;
 				}
+				//TODO WUT - on thread1's stack
+				//free(MIP_IP);
 			
 				ret[0]=MIP_IP->srcMIP[0];
 				retSet=1;
