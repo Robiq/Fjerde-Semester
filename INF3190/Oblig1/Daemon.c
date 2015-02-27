@@ -154,7 +154,7 @@ void decodeBuf(const char* buf, char* msg, char* dst)
 	//Null-terminates the string.
 	msg[i]='\0';
 }
-//Main TODO - Continue here! Make design-document and finish comments
+//Main
 int main(int argc, char* argv[]){
 
 	if(argc != 3){
@@ -162,19 +162,21 @@ int main(int argc, char* argv[]){
 		return -1;
 	}
 
-
+	//Saves the interface we want to connect the raw socket toa s a constant. 
 	const char* interface = argv[2];
+
 	uint8_t iface_hwaddr[6];
 
 	//Handles ctrl+c, for closing the server
 	signal(SIGINT, closeProg);
 
+	//Err hanles different errors through the program. Accpt is set to 0, and the fd_set is declared, so the select-server works as intended.
 	int err, accpt=0;
 	fd_set fds;
 
-	//Creates a socket for requests.
+	//Creates a raw socket for requests.
 	raw=socket(AF_PACKET, SOCK_RAW, 0xFFFF);
-
+	//error
 	if(raw == -1){
 		perror("Socket");
 		close(raw);
@@ -191,9 +193,10 @@ int main(int argc, char* argv[]){
 		return -3;
 	}
 
-	//
+	//Saves the MAC-address of this daemon, in iface_hwaddr. Returns 1 if success, 0 if failure.
 	if(get_if_hwaddr(raw, interface, iface_hwaddr) != 0)	return -3;
 
+	//Copy contents of iface_hwaddr to myAdr, which is global.
 	memcpy(myAdr, iface_hwaddr,sizeof(iface_hwaddr));
 
 	#ifdef DEBUG
@@ -218,20 +221,22 @@ int main(int argc, char* argv[]){
 		return -5;
 	}
 
+	//Creates a UNIX-socket for IPC.
 	ipc = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-
-	//Makes sure that the socket always can be re-used, if recently used for another connection
-	activate=1;
-	err = setsockopt(ipc, SOL_SOCKET, SO_REUSEADDR, &activate, sizeof(int));
-
+	//Error
 	if(ipc == -1){
 		perror("Socket");
 		return -6;
 	}
-	
+
+	//Makes sure that the socket always can be re-used, if recently used for another connection
+	activate=1;
+	err = setsockopt(ipc, SOL_SOCKET, SO_REUSEADDR, &activate, sizeof(int));
+	//Saves the name of the daemon.
 	daemonName = malloc(strlen(argv[1])+1);
 	strcpy(daemonName, argv[1]);
 
+	//Binds the daemonName to the IPC socket and then binds the socket.
 	struct sockaddr_un bindaddr;
 	bindaddr.sun_family = AF_UNIX;
 	strncpy(bindaddr.sun_path, daemonName, sizeof(bindaddr.sun_path));
@@ -252,13 +257,14 @@ int main(int argc, char* argv[]){
 		free(daemonName);
 		return -9;
 	}
-
+	//Create memory for the root node in the ARP-registry.
 	first = malloc(sizeof (struct Arp_list));
 	first->next=NULL;
 
 	int fd_max;
 	int i=0;
 
+	//Selects which socket to connect to.
 	if(raw > ipc)	fd_max = raw;
 	else if (ipc > raw)	fd_max = ipc;
 
@@ -266,9 +272,10 @@ int main(int argc, char* argv[]){
 	while(i<maxCon){
 		//initializes the FD_SETS
 		FD_ZERO(&fds);
-
+		//Includes both sockets in the fd_set
 		FD_SET(raw, &fds);
 		FD_SET(ipc, &fds);
+		//If IPC is connected, accpt is set for that connection. This is the IPC-connection we want to use if we have already achieved a connection.
 		if(accpt!=0){
 			FD_SET(accpt, &fds);
 			fd_max=accpt;
@@ -286,27 +293,29 @@ int main(int argc, char* argv[]){
 			return -6;
 		}
 
-		//Looks for the socket we connected to earlier!
+		//Looks for the socket we connected to earlier! Sees if it is in fd_set fds
 		if(FD_ISSET(accpt, &fds)){
 
 			char buf[maxSize]={0};
 
-			//closed socket
+			//Reads from accpt IPC socket. Stores information in the variable buf.
 			if(!recIPC(accpt, buf)){
-
+				//If nothing is to be read, the connection has terminated.
 				close(accpt);
 				accpt=0;
 				if(raw > ipc)	fd_max=raw;
 				else	fd_max=ipc;
 
+				//Handles the input from accpt.
 			}else{
 
-				//Håndter __ som skiller msg fra address
 				char msg [maxSize]={0};
 				char dst[1];
+				//Handles the input, and separates the message and the destination, if there is one.
 				decodeBuf(buf, msg, dst);
-				
+				//If a character has been set as a return-address, this is the correct destination.
 				if(retSet){
+					//Changes dst and resets retSet
 					dst[0]=ret[0];
 					retSet=0;
 				}
@@ -316,18 +325,18 @@ int main(int argc, char* argv[]){
 				printf("Dst: %d\n", (int)dst[0]);
 				#endif
 
+				//Declares structs and sizes
 				size_t sndSize = strlen(msg);
-
 				size_t msgsize = (sizeof(struct ether_frame) + sndSize + sizeof(struct MIP_Frame));
-
 				struct ether_frame *frame = malloc(msgsize);
 				struct MIP_Frame *mipFrame = malloc(sizeof(struct MIP_Frame) + sndSize);
-				
-
 				uint8_t mac[6];
 
+				//Tries to find the destination MIP-address(first parameter) in the ARP-registry. The second parameter stores the correct MAC-address, set by the function, if there is a match.
+				//Returns 1 on success, 0 on failure.
 				if(findArp(dst, mac)){
-					//Create frames
+					//Creates a MIP_Frame with the correct information. Returns 1 on success, 0 on failure.
+					//Param 1: MIP-Source, Param2: MIP-Destination, Param3: Payload, Param4: Message, Param5: MIP-frame
 					if(!setTransport(daemonName, dst, sndSize, msg, mipFrame)){
 						//ERROR!
 						printf("Error during framecreation(Transport)\n");
@@ -342,10 +351,12 @@ int main(int argc, char* argv[]){
 
 						return -12;
 					}
-
+					//Creates a Ethernet-frame with the correct information
+					//Param1: MIP-frame, Param2: Messagesize, Param3: Source MAC, Param4: Destination MAC, Param5: Ethernet-frame
 					createEtherFrame(mipFrame, sndSize, myAdr, mac, frame);
 					
-					//Send raw
+					//Send frame over raw socket. Returns 1 on success, and 0 on failure.
+					//Param1: Socket, Param2: Size of frame, Param3: frame
 					if(!sendRaw(raw, msgsize, frame)){
 						perror("Error during raw sending");
 						close(raw);
@@ -358,30 +369,33 @@ int main(int argc, char* argv[]){
 						free(mipFrame);
 						return -11;
 					}
+
 					free(mipFrame);
 					free(frame);
-					
-				} else{
-
+				//If the destination MIP-address is not in the ARP-registry.	
+				}else{
+					//If we have a temporary frame set, clear it!
 					if(frmSet){
 						free(tmpFrame);
 					}
-
+					//Allocate space for the temporary frame, and set frmSet to true (1).
 					tmpFrame = malloc((sizeof(struct MIP_Frame)) + sndSize);
-
 					frmSet=1;
 
 					uint8_t dst_addr[6];
 
-					//Create arp-frame
+					//Create MIP-frame of type ARP
 					err = setARP(daemonName, mipFrame);
 
-					//Create ether-frame
+					//Create MAC destination address, which broadcasts to all
 					memcpy(dst_addr, "\xFF\xFF\xFF\xFF\xFF\xFF", 6);
 
+					//Creates a Ethernet-frame with the correct information. Returns 1 on success, 0 on failure.
+					//Param 1: MIP-frame, Param2: Messagesize, Param3: Source MAC, Param4: Destination MAC, Param5: Ethernet-frame
 					createEtherFrame(mipFrame, 0, myAdr, dst_addr, frame);
 
-					//SEND!
+					//Send frame over raw socket. Returns 1 on success, and 0 on failure.
+					//Param1: Socket, Param2: Size of frame, Param3: frame
 					if(!sendRaw(raw,(sizeof(struct ether_frame)+sizeof(struct MIP_Frame)), frame)){
 						perror("Error during raw sending");
 						close(raw);
@@ -393,11 +407,13 @@ int main(int argc, char* argv[]){
 						free(mipFrame);
 						return -11;
 					}
+
 					free(mipFrame);
 					free(frame);
-
+					//Saves the size of tmpFrame in global variable
 					len=sndSize;
-
+					//Creates a MIP_Frame with the correct, currently avaliable information. Returns 1 on success, 0 on failure.
+					//Param 1: MIP-Source, Param2: Payload, Param3: Message, Param4: MIP-frame
 					if(!setTempTransp(daemonName, sndSize, msg, tmpFrame)){
 						//ERROR!
 						printf("Error during framecreation(TempTrans)!\n");
@@ -416,16 +432,18 @@ int main(int argc, char* argv[]){
 			}
 		}
 
-		//Checks if the request-socket is in the FD_SET.
+		//Checks if the raw-socket is in the FD_SET.
 		if(FD_ISSET(raw, &fds)){
 			
+			//If there is no IPC-connection to/from this daemon, continue
 			if(accpt == 0)	continue;
 
+			//Create struct and buffer to recieve ethernet-frame
 			char buf[1600];
-
 			struct ether_frame *recvframe = (struct ether_frame*)buf;
 
-			//Connected with a raw socket
+			//Connected with a raw socket. Tries to recive information through the socket (Param 1), and save it to the buffer (Param 2).
+			//Returns 1 if success, 0 if failure.
 			err=recRaw(raw, buf);
 			if(!err){
 				printf("Error while reciving from raw!\n");
@@ -440,15 +458,12 @@ int main(int argc, char* argv[]){
 				free(daemonName);
 				return -11;
 			}
-
-
+			//Allocates memory and accesses the MIP-frame sent in the ethernet-frame
 			struct MIP_Frame * recvdMIP = malloc(sizeof(recvframe->contents));
 			recvdMIP = (struct MIP_Frame*) recvframe->contents;
 			
 			#ifdef DEBUG
-				//Print information on message recieved
-				//Sender+Reciever MIP-adress
-				
+				//Print information on message recieved				
 				struct MIP_Frame* MIPu = malloc(sizeof(recvframe->contents));
 				MIPu = (struct MIP_Frame*) recvframe->contents;
 
@@ -465,13 +480,15 @@ int main(int argc, char* argv[]){
 				else	printf("No content: ARP\n");	
 			#endif
 
-			//Create ethernet-frame !
-			size_t msgsize; //= sizeof(struct ether_frame) + sizeof(struct MIP_Frame) + strlen(recvdMIP->message);
-			struct ether_frame *frame; //= malloc(msgsize);
+			//Create ethernet-frame and size variable!
+			size_t msgsize;
+			struct ether_frame *frame;
 
+			//Finds what type of MIP-frame we recived. Parameter is the MIP-frame.
+			//Returns -1 if error, 1 if it is a Transport-frame, 2 if it is a ARP-response-frame, and 3 if it is an ARP-frame.
 			err=findCase(recvdMIP);
 
-
+			//ERROR!
 			if (err==-1){
 				printf("Faulty frame/frames recived!\n");
 				close(raw);
@@ -488,22 +505,26 @@ int main(int argc, char* argv[]){
 				//Recieved Arp-response.
 			} else if(err == 2){
 				//Save in Arp-cache
-
+				//Create MIP-frame to read information from ethernet-frame
 				struct MIP_Frame* MIP = malloc(sizeof(recvframe->contents));
 				MIP = (struct MIP_Frame*) recvframe->contents;
-
+				//Save the MIP-address(Param 1) and the MAC-address(Param2) in the ARP-registry.
 				saveArp(MIP->srcMIP, recvframe->src_addr);
 
 				//Finalize saved mip-frame!
+				//Add the destination MIP-address (Param1) to the MIP-frame created earlier (Param2)
 				finalTransp(MIP->srcMIP, tmpFrame);
 
+				//Create calculate total size of information and create ethernetframe with enough allocated memory.
 				msgsize= sizeof(struct ether_frame) + sizeof(struct MIP_Frame) + len;
 				frame=malloc(msgsize);
 
-				//Add everything to ethernet-frame & send!
+				///Creates a Ethernet-frame with the correct information
+				//Param1: MIP-frame, Param2: Messagesize, Param3: Source MAC, Param4: Destination MAC, Param5: Ethernet-frame
 				createEtherFrame(tmpFrame, len, myAdr, recvframe->src_addr, frame);
 
-				//SEND
+				//Send frame over raw socket. Returns 1 on success, and 0 on failure.
+				//Param1: Socket, Param2: Size of frame, Param3: frame
 				if(!sendRaw(raw, msgsize, frame)){
 					perror("Error during raw sending");
 					close(raw);
@@ -528,30 +549,38 @@ int main(int argc, char* argv[]){
 			} else if(err == 3){
 				uint8_t mac[6];
 
+				//Create MIP-frame to read recived information.				
 				struct MIP_Frame* MIP_IP = malloc(sizeof(recvframe->contents));
 				MIP_IP = (struct MIP_Frame*) recvframe->contents;
 
 				//Is it in my Arp-cache? If not, add!
+				//Tries to find the destination MIP-address(first parameter) in the ARP-registry. The second parameter stores the correct MAC-address, set by the function, if there is a match.
+				//Returns 1 on success, 0 on failure.
 				if(!findArp(MIP_IP->srcMIP, mac)){
 					//Save in Arp-cache
+					//Adds MIP-address(Param1) and MAC-address(Param2) to the ARP_registry
 					saveArp(MIP_IP->srcMIP, recvframe->src_addr);
 				}
 
 				//Send Arp-response!
+				//Creates MIP-frame for ARP-response
 				struct MIP_Frame* frm1 = malloc(sizeof(struct MIP_Frame));
 				char tmp[1];
 				tmp[0] = (int) recvdMIP->srcMIP[0];
 				//Create Arp-response-frame.
+				//Param1: MIP-source, Param2: MIP-destination, Param3: MIP-frame
 				setARPReturn(daemonName, tmp, frm1);
 				
-
+				//Calculate the correct size of the package and allocate memory for it in a ethernet-frame 
 				msgsize= sizeof(struct ether_frame) + sizeof(struct MIP_Frame);
 				frame=malloc(msgsize);
 
-				//Create ethernet-package
+				//Creates a Ethernet-frame with the correct information
+				//Param1: MIP-frame, Param2: Messagesize, Param3: Source MAC, Param4: Destination MAC, Param5: Ethernet-frame
 				createEtherFrame(frm1, 0, myAdr, recvframe->src_addr, frame);
 
-				//SEND!
+				//Send frame over raw socket. Returns 1 on success, and 0 on failure.
+				//Param1: Socket, Param2: Size of frame, Param3: frame
 				if(!sendRaw(raw, msgsize, frame)){
 					perror("Error during raw sending");
 					close(raw);
@@ -572,11 +601,14 @@ int main(int argc, char* argv[]){
 
 			//Recived transport
 			}else{
-				//Send IPC
+				//Send the recived information to IPC
 
+				//Create MIP-frame to read recived information.				
 				struct MIP_Frame * MIP_IP = malloc(sizeof(recvframe->contents));
 				MIP_IP = (struct MIP_Frame*) recvframe->contents;
 
+				//Send message over IPC socket. Returns 1 on success, and 0 on failure.
+				//Param1: Socket, Param2: Message
 				if(!sendIPC(accpt, MIP_IP->message)){
 					perror("Error during IPC");
 					close(raw);
@@ -590,8 +622,9 @@ int main(int argc, char* argv[]){
 					free(daemonName);
 					return -9;
 				}
-			
+				//Set the return MIP-address to the source of the recived message, so we know where to send answer
 				ret[0]=MIP_IP->srcMIP[0];
+				//retSet is set to true (1)
 				retSet=1;
 			}
 
@@ -602,10 +635,12 @@ int main(int argc, char* argv[]){
 			#endif
 		}
 		
+		//Finds a connection via IPC.
 		if(FD_ISSET(ipc, &fds)){
 			//Connected with ipc
-
+			//Accept the connection and redirect it for further processing.
 			accpt = accept(ipc, NULL, NULL);
+			//Error!
 			if(accpt == -1){
 				close(raw);
 				close(ipc);
@@ -618,7 +653,7 @@ int main(int argc, char* argv[]){
 		}
 		i++;
 	}
-	unlink(daemonName);
-	free(daemonName);
+	//Free global variables.
+	closeProg();
 	return 0;
 }
